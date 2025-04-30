@@ -150,7 +150,7 @@ def process_pockets(protein_file, chains):
         subprocess.run(clean_chains_cmd, shell=True)
         # chainspdb.flush()
         # get pockets with p2rank
-        prankcmd = f"{os.environ.get('HOMEDIR')}/.local/src/p2rank_2.4/prank"
+        prankcmd = f"{os.environ.get('HOMEDIR')}/.local/src/p2rank_2.5/prank"
         prankconf = f"{os.environ.get('SCRIPTDIR')}/configs/blind.groovy"
         # pockets = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
         # pockets_cmd = f'{prankcmd} predict -c {prankconf} -f {chainspdb.name} -o {pockets.name}'
