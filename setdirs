@@ -8,7 +8,7 @@ WD=$ROOT
 VINADIR=$SRC/autodock_vina_1_1_2_linux_x86/bin
 ADFRDIR=$SRC/adfr/ADFRsuite-1.0/bin
 CHIMDIR=$SRC/chimera/bin
-PRANK=$SRC/p2rank_2.4
+PRANK=$SRC/p2rank_2.5
 
 FROOT="$(echo $ROOT | sed 's/\/\|\./\\&/g')"
 FSRC="$(echo $SRC | sed 's/\/\|\./\\&/g')"

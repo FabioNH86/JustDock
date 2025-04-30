@@ -3,7 +3,7 @@
 SCRIPTPATH=$SCRIPTDIR/receptor.py
 CHIMERACMD=$HOMEDIR/.local/src/chimera/bin/chimera
 #CHIMERADIR=$HOMEDIR/.local/src/chimera/bin
-PRANKCMD=$HOMEDIR/.local/src/p2rank_2.4/prank
+PRANKCMD=$HOMEDIR/.local/src/p2rank_2.5/prank
 PRANKCONF=$SCRIPTDIR/configs/blind.groovy
 
 export IF=$ID/receptor.pdb
