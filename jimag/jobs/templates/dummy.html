@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+{% extends 'nav.html' %}
+{% load static %}
+
+{% block content %}
+<html lang="en">
+    <head>
+        <title></title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        <script src="{% static 'dummy_bundle.js' %}"></script> 
+        </script>
+            <style>
+            #dumapp {
+                position: absolute;
+                width: 22%;
+                height: 220px;
+            }
+            </style>
+        <link rel="stylesheet" type="text/css" href="{% static 'molstar/molstar.css' %}" />
+        <script type="text/javascript" src="{% static 'molstar/molstar.js' %}"></script>
+        <div id="chainsviewer"></div>
+        <script type="text/javascript" src="{% static 'dummy_bundle.js' %}">
+        </script>
+    </body>
+
+{% endblock %}
+</html>

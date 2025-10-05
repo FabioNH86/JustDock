@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+{% load static %}
+<head>
+    <link rel="stylesheet" href="{% static 'styles/running.css' %}">
+  <title>Running job {{ job_id }}</title>
+</head>
+<center>
+<div id="progress-div" class="monospace-box">Your job will start briefly...</div>
+</center>
+
+<script>
+  var job_id = "{{ job_id }}";
+  function updateProgress() {
+    // Make an Ajax request to the check_progress view
+    fetch('{% url "check_progress" %}?job_id=' + job_id)
+      .then(response => response.json())
+      .then(data => {
+        //console.log("job_id:", job_id)
+        const progressDiv = document.getElementById('progress-div');
+        const formattedOutput = data.progress.replace(/\n/g, '<br>');
+        progressDiv.innerHTML = 'Progress: ' + formattedOutput;
+
+        if (data.progress === "Script completed successfully" || data.progress.startsWith("Script failed")){
+          window.location.href = data.redirect_url;
+        }
+      });
+  }
+
+  updateProgress();
+
+  // Periodically update progress every 2 seconds (adjust as needed)
+  const progressInterval = setInterval(updateProgress, 5000);
+  //setInterval(updateProgress, 2000);
+</script>
+</html>

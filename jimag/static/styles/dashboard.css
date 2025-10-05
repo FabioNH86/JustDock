@@ -1,0 +1,75 @@
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block !important;
+}
+
+.sidebar {
+  float: left;
+  width: 19%;
+  border: 4px solid black;
+  padding: 10px;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar ul li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.sidebar ul li a.active {
+  margin-right: 10px;
+  color: #00aaaa;
+  font-weight: bold;
+}
+
+.sidebar ul li a {
+  margin-right: 10px;
+  color: black;
+  font-weight: bold;
+}
+
+.sidebar ul li button {
+  margin-left: auto;
+  background-color: black;
+  color: white;
+  border: none;
+  border-radius: 0;
+  padding: 5px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.dashboard {
+  float: right;
+  width: 80%;
+  height: 800px;
+  border: 4px solid black;
+  margin: auto;
+  margin-bottom: 70px;
+  padding: 20px;
+}
+
+.tab-links {
+  text-align: center;
+}
+
+.tab-links li {
+  list-style: none;
+  padding: 30px;
+  font-size: 14px; 
+  font-weight: bold;
+  display: inline-block
+}
+
+.tab-links li a {
+  color: black;
+}

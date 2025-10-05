@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+{% extends 'nav.html' %}
+{% load static %}
+
+{% block content %}
+<head>
+    <meta charset="UTF-8">
+    
+    <meta name="viewport" content="width=device-width, user-scalale=no, initial-scale=1.0, maximum-scale=1.0, minimun-scale=1.0" >
+   
+    <link rel="stylesheet" href="{% static 'styles/normalize.css' %}">
+    <link rel="stylesheet" href="{% static 'styles/style.css' %}">
+
+    <title>Docking</title>
+   
+</head>
+<body>
+    
+    <section class="dos-columnas mg-top container">
+        <div class="contenido">
+        <h2 class="init">Welcome!</h2>
+        <h2 class="fg"> Science, at your fingertips</h2>
+        <p class="info-text">Discover our work in bioinformatics</p>
+        
+        <div class="group-btn">
+            <a href="/jobs" class="btn btn-yellow"> Start docking! </a>
+            <a href="https://github.com/htaldo/jimag-scripts/archive/refs/heads/main.zip" class="btn border"> Download standalone script </a> </div>
+        </div>
+        <div class="info-img">
+            <img src="{% static 'pgif2.gif' %}" alt="ligando2">
+
+        </div>
+    </div>
+    </section>
+</body>
+{% endblock %}
+</html>

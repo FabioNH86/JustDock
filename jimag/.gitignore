@@ -1,0 +1,11 @@
+node_modules/
+# Python
+__pycache__/
+*/__pycache__/
+*.pyc
+*.pyo
+media/
+.venv/
+script_output.log
+.script_output.log.swp
+dump.rdb
