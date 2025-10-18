@@ -9,7 +9,22 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/react": "^18.3.26",
+    "@types/react-dom": "^18.3.7",
+    "css-loader": "^6.8.1",
+    "html-loader": "^4.2.0",
+    "sass": "^1.69.5",
+    "sass-loader": "^13.3.2",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.2.2",
+    "web": "^0.0.2",
     "webpack": "^5.102.1",
     "webpack-cli": "^6.0.1"
-  }
+  },
+  "dependencies": {
+    "molstar": "^5.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "typings": "index.d.ts"
 }
