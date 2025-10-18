@@ -1,0 +1,19 @@
+.jobscontainer {
+  display: flex;
+  justify-content: space-between;
+}
+
+.jobsbox {
+  width: 50%;
+  /*background-color: lightblue;*/
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.content-section {
+  display: none;
+}
+
+.show {
+  display: block;
+}

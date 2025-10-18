@@ -1,0 +1,10 @@
+.monospace-box {
+    font-family: 'Courier New', Courier, monospace;
+    padding: 20px;
+    border: 4px solid black;
+    background-color: #f0f0f0;
+    width: 1000px;
+    height: 800px;
+    overflow-y: auto;
+    text-align: left;
+}

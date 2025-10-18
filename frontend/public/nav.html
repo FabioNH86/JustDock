@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+    <head>
+        <title></title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="assets/styles/style.css" rel="stylesheet">
+    </head>
+    <body>
+        <header class="header container">
+            <div class="logo">
+		<!--
+                <img src="{% static 'pgif2.gif' %}" alt="Ligando">
+		-->
+
+            </div>
+            <nav class="nav">
+                <!-- debería usar mejor sintaxis tipo {% url 'home' %} ?-->
+                <a href="/home">Home</a>
+                <a href="/jobs">Jobs</a>
+                <a href="/about">About</a>
+                {% if user.is_authenticated %}
+                <a href="/results">Dashboard</a>
+                <a href="/logout">Logout</a>
+                {% else %}
+                <a href="{% url 'login' %}">Log in</a>
+                <a href="{% url 'register' %}">Register</a>
+                {% endif %}
+            </nav>
+        </header>
+
+        {% block content %}
+        {% endblock %}
+    </body>
+</html>
