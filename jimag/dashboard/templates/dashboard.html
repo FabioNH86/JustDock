@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+{% extends 'nav.html' %}
+{% load static %}
+
+{% block content %}
+<head>
+    <link rel="stylesheet" href="{% static 'styles/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'styles/normalize.css' %}">
+    <link rel="stylesheet" href="{% static 'styles/style.css' %}">
+
+    <title>Dashboard</title>
+   
+</head>
+<body>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <h1>Dashboard</h1> 
+    <br>
+    <aside class="sidebar" style="height: 800px; overflow-y: auto;">
+        <ul>
+            {% for job in jobs %}
+                <li>
+                    <a href="{% url 'results' job.id 0 1 %}">Job {{ job.id }}</a> 
+                    <form action="{% url 'delete_job' job.id %}" method="POST">
+                        {% csrf_token %}
+                        <button>
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </li>
+                {% if job.id == current_job %}
+
+
+                    {% for docking in dockings %}
+                        <li>
+                            <a href="{% url 'results' job.id docking.id 1 %}">───Docking {{ docking.id }}</a>
+                        </li>
+                        {% if docking.id == current_docking %}
+                            {% for pocket in pockets %}
+                                {% if pocket == current_pocket %}
+                                    <li>
+                                        <a href="{% url 'results' job.id docking.id pocket %}" class="active">──────Pocket {{ pocket }}</a> 
+                                    </li>   
+                                {% else %}
+                                    <li>
+                                        <a href="{% url 'results' job.id docking.id pocket %}">──────Pocket {{ pocket }}</a> 
+                                    </li>   
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+
+
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </aside>
+    <div class="dashboard">
+        <ul class="tab-links">
+            <li class="active"><a href="#tab1">Affinities</a></li>
+            <li><a href="#tab2">Visualization</a></li>
+            <li><a href="#tab3">Pockets</a></li>
+            <li><a href="#tab4">Details</a></li>
+            <li><a href="#tab5">Download</a></li>
+        </ul>
+
+        <div class="tab-content" id="tab1">
+            <pre>{{ vina_results }}</pre>
+        </div>
+        <div class="tab-content" id="tab2">
+            <style>
+                #app {
+                    position: absolute;
+                    width: 67%;
+                    height: 600px;
+                }
+            </style>
+            <!-- 
+                molstar.js and .css are obtained from
+                - the folder build/viewer after cloning and building the molstar package 
+                - from the build/viewer folder in the Mol* NPM package
+            -->
+            <link rel="stylesheet" type="text/css" href="{% static 'molstar/molstar.css' %}" />
+            <script type="text/javascript" src="{% static 'molstar/molstar.js' %}"></script>
+            <div id="app"></div>
+            <script type="text/javascript" src="{% static 'dashb/viewer_bundle.js' %}"
+                defer
+                    data-conformers="{{ current_job_files.conformers }}";
+                    data-receptor="{{ current_job_files.receptor }}";>
+            </script>
+        </div>
+        <div class="tab-content" id="tab3">
+            <style>
+                #pockets-viewer {
+                    position: relative;
+                    width: 67%;
+                    height: 600px;
+                }
+            </style>
+            <link rel="stylesheet" type="text/css" href="{% static 'molstar/molstar.css' %}" />
+            <script type="text/javascript" src="{% static 'molstar/molstar.js' %}"></script>
+            <div id="pockets-viewer"></div>
+            <script type="text/javascript" src="{% static 'dashb/dock3_bundle.js' %}"
+                defer
+                    data-conformers="{{ current_job_files.conformers }}";
+                    data-receptor="{{ current_job_files.receptor }}";>
+            </script>
+
+        </div>
+        <div class="tab-content" id="tab4">
+            <h2>Details</h2>
+            <p>Job type: {{ job_info.type }}</p>
+            <p>Created at: {{ job_info.created_at }}</p>
+            <p>Receptor name: {{ job_info.receptor }}</p>
+            <p>Ligand name: {{ job_info.ligand }}</p>
+            <p>Pockets: {{ job_info.pockets }}</p>
+        </div>
+        <div class="tab-content" id="tab5">
+            <a href="{% url 'download_output' current_job %}" class="btn btn-primary">Download output</a>
+        </div>
+    </div>
+    <script src="{% static 'dashb/dashboard.js' %}"></script>
+</body>
+{% endblock %}
+</html>

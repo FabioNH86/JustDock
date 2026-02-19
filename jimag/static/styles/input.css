@@ -1,0 +1,38 @@
+input[type="text"] {
+	font-style: italic;
+	padding: 2px;
+	width: 300px;
+	border-radius: 0;
+	border: 3px solid black;
+	margin: 20px auto;
+}
+
+button {
+	font-weight: bold;
+	padding: 10px;
+	color: white;
+	background: black;
+	width: 300px;
+	margin: 20px auto;
+	margin-top: 0;
+	border: 0;
+	border-radius: 0;
+	cursor: pointer;
+}
+
+button:hover {
+	background-color: #00aaaa;
+}
+
+select {
+	padding: 2px;
+	width: 300px;
+	border-radius: 0;
+	border: 3px solid black;
+	margin: 20px auto;
+	background-color: #ffffff;
+}
+
+select option {
+	font-style: italic;
+}

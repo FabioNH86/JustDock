@@ -1,0 +1,35 @@
+#!/bin/bash
+
+ROOT=~/pro/falcon/script4
+SRC=~/.local/src
+ID=$ROOT/input
+OD=$ROOT/output
+WD=$ROOT
+VINADIR=$SRC/autodock_vina_1_1_2_linux_x86/bin
+ADFRDIR=$SRC/adfr/ADFRsuite-1.0/bin
+CHIMDIR=$SRC/chimera/bin
+PRANK=$SRC/p2rank_2.5
+
+FROOT="$(echo $ROOT | sed 's/\/\|\./\\&/g')"
+FSRC="$(echo $SRC | sed 's/\/\|\./\\&/g')"
+FID="$(echo $ID | sed 's/\/\|\./\\&/g')"
+FOD="$(echo $OD | sed 's/\/\|\./\\&/g')"
+FWD="$(echo $WD | sed 's/\/\|\./\\&/g')"
+FVINADIR="$(echo $VINADIR | sed 's/\/\|\./\\&/g')"
+FADFRDIR="$(echo $ADFRDIR | sed 's/\/\|\./\\&/g')"
+FCHIMDIR="$(echo $CHIMDIR | sed 's/\/\|\./\\&/g')"
+FPRANK="$(echo $PRANK | sed 's/\/\|\./\\&/g')"
+
+for f in *.sh; do
+	sed -i "s/ID=.*/ID=$FID/" $f
+	sed -i "s/OD=.*/OD=$FOD/" $f
+	sed -i "s/WD=.*/WD=$FWD/" $f
+	sed -i "s/VINADIR=.*/VINADIR=$FVINADIR/" $f
+	sed -i "s/ADFRDIR=.*/ADFRDIR=$FADFRDIR/" $f
+	sed -i "s/CHIMDIR=.*/CHIMDIR=$FCHIMDIR/" $f
+	sed -i "s/PRANK=.*/PRANK=$FPRANK/" $f
+done
+
+for f in *.awk; do
+	sed -i "s/OD =.*/OD = \"$FOD\"/" $f
+done
