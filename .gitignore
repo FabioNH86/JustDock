@@ -1,0 +1,30 @@
+# Main
+p2rank_2.4/
+vina_1.2.5/
+p2rank_2.4.tar.gz
+chimera/
+adfr/
+
+# jimag-scripts
+jimag-scripts/etc/
+jimag-scripts/input/
+jimag-scripts/output/
+
+# jimag
+jimag/node_modules/
+# Python
+jimag/__pycache__/
+jimag/*/__pycache__/
+jimag/*.pyc
+jimag/*.pyo
+jimag/media/
+jimag/.venv/
+jimag/script_output.log
+jimag/.script_output.log.swp
+jimag/dump.rdb
+jimag/env/
+
+**/venv/
+**/.venv/
+**/env/
+**/__pycache__/
