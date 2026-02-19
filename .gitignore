@@ -23,7 +23,6 @@ jimag/script_output.log
 jimag/.script_output.log.swp
 jimag/dump.rdb
 jimag/env/
-
 **/venv/
 **/.venv/
 **/env/
