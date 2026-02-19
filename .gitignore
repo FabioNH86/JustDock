@@ -27,5 +27,5 @@ jimag/env/
 **/.venv/
 **/env/
 **/__pycache__/
-jimag/env
-jimag/.venv
+jimag/None/
+jimag/None/media/user_1
