@@ -27,3 +27,5 @@ jimag/env/
 **/.venv/
 **/env/
 **/__pycache__/
+jimag/env
+jimag/.venv
