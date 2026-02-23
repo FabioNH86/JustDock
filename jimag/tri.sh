@@ -45,6 +45,8 @@ tmux send-keys -t $SESSION "$CMD_REDIS" C-m
 # Seleccionamos el panel 0 (Worker) para que el cursor empiece ahí
 tmux select-pane -t 0
 
+tmux resize-pane -D 5
+
 gnome-terminal --title="Jimag System" -- tmux attach-session -t $SESSION &
 
 # --- NAVEGADOR ---
