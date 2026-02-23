@@ -13,6 +13,14 @@ class Job(models.Model):
     job_name = models.CharField(max_length=50)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+    STATUS_CHOICES = [
+        ('created', 'Created'),
+        ('queued', 'Queued'),
+        ('started', 'Started'),
+        ('finished', 'Finished'),
+        ('failed', 'Failed'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
 
 class Protein(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

@@ -1,7 +1,13 @@
 #!/bin/bash
+set -x
+set -e
 #Para simular el comportamiento de este script, correr primero blind.sh y luego dejar predictions solo en output
 #example: ./multi.sh --vinalvl 2 --num_modes 5 --pockets 1,3
 #NOTE: max_pockets = 1 and pockets = 1 should yield the same result
+
+# Detecta la carpeta donde reside este script (multi.sh)
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export SCRIPTDIR
 
 #Defaults
 export WD=./output

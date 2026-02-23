@@ -20,6 +20,9 @@ import sys
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+PROJECTROOT = str(BASE_DIR)
+#SCRIPTDIR = str(BASE_DIR.parent / "jimag-scripts")
+SCRIPTDIR = os.getenv('SCRIPTDIR', str(BASE_DIR.parent / 'jimag-scripts'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -147,7 +150,7 @@ RQ_QUEUES = {
         'HOST': 'localhost',
         'PORT': 6380,
         'DB': 0,
-        'DEFAULT_TIMEOUT': 540,
+        'DEFAULT_TIMEOUT': 3600,
         'CONNECTION_POOL_KWARGS': {
             'socket_keepalive': True,
             'retry_on_timeout': True,

@@ -5,6 +5,7 @@ from rq.job import Job as rqJob
 from django_rq import get_queue
 from .tasks import run_docking_script, analyze_protein, analyze_ligand, process_pockets
 from django.urls import reverse
+from rq.exceptions import NoSuchJobError
 import os
 import json
 import subprocess
@@ -163,47 +164,70 @@ def store_ligand(request, job):
 
 
 def rundocking(request):
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return HttpResponse(status=204)
-    else:
-        user, job, settings = request.session.get('job_metadata', [])
-        result = run_docking_script.delay(user, job, settings)
-        job_id = result.id
-        return render(request, 'running.html', {'job_id': job_id})
+    metadata = request.session.get('job_metadata')
+    if not metadata:
+        return redirect('home') # O a la página de carga de archivos
 
+    user_id, job_id, settings_dict = metadata
+    job_obj = Job.objects.get(id=job_id)
+
+    # EL CANDADO: Si ya no está en 'created', es que ya se encoló
+    if job_obj.status == 'created':
+        job_obj.status = 'queued'
+        job_obj.save()
+        
+        # IMPORTANTE: Pasa el ID, no el objeto completo
+        run_docking_script.delay(user_id, job_id, settings_dict)
+        
+        # Opcional: Limpiar sesión para que el F5 no tenga metadatos
+        # request.session.pop('job_metadata', None) 
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'redirect_url': '/run-docking/'}) 
+    
+    return render(request, 'running.html', {'job_id': job_id})
 
 def check_progress(request):
-    queue = get_queue('default')
     job_id = request.GET.get("job_id")
-    job = rqJob.fetch(job_id, connection=queue.connection)
+    print(f'DEBUG: Check progress para Job ID: {job_id}')
+    
+    try:
+        # 1. Intentamos obtener el estado desde nuestra base de datos (Fuente de verdad)
+        django_job = Job.objects.get(pk=job_id)
+        
+        # Si en la DB ya dice que terminó
+        if django_job.status == 'finished' or django_job.status == 'completed':
+            return JsonResponse({
+                'progress': 'Script completed successfully',
+                'redirect_url': reverse('results')
+            })
+        
+        # Si en la DB dice que falló
+        if django_job.status == 'failed':
+            return JsonResponse({
+                'progress': 'Error en la ejecución',
+                'redirect_url': reverse('home')
+            })
 
-    # job.meta gets the status update from rundocking (including script logs)
-    progress = job.meta.get('progress', 'Running')
+        # 2. Si sigue 'started', intentamos buscar detalles adicionales en Redis (opcional)
+        try:
+            queue = get_queue('default')
+            rq_job = rqJob.fetch(str(job_id), connection=queue.connection)
+            # Si el script escribe en meta['progress'], lo usamos, si no, usamos el status de la DB
+            progress = rq_job.meta.get('progress', django_job.status)
+        except:
+            progress = django_job.status # Si Redis no responde, usamos lo que diga la DB
 
-    if progress == "Script completed successfully":
-        user_inst, job_inst, settings = request.session.get('job_metadata')
+        return JsonResponse({'progress': progress})
 
-        if hasattr(request.user, 'profile'):
-            request.user.profile.latest_job = job_inst
-            request.user.profile.save()
-        else:
-            profile = Profile.objects.create(
-                user=request.user,
-                latest_job=job_inst,
-            )
-            profile.save()
-
-        redirect_url = reverse('results')
-        return JsonResponse({'progress': progress,
-                             'redirect_url': redirect_url})
-
-    # output = job.meta.get('output', [])
-    # current_output = '\n'.join(output)
-    # TODO: see if we can log the progress incrementally (not sending the same past stuff over and over)
-    # print("PROGRESS LOG: ", progress)
-    # output lets us directly log the script output to the django console
-    # return JsonResponse({'progress': progress, 'output': output})
-    return JsonResponse({'progress': progress})
+    except Job.DoesNotExist:
+        return JsonResponse({
+            'progress': 'Job no encontrado en la base de datos', 
+            'redirect_url': reverse('home')
+        })
+    except Exception as e:
+        print(f"Error en check_progress: {e}")
+        return JsonResponse({'progress': 'Procesando...'})
 
 
 def dummy(request):

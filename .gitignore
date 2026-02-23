@@ -9,6 +9,7 @@ adfr/
 jimag-scripts/etc/
 jimag-scripts/input/
 jimag-scripts/output/
+*.pyc
 
 # jimag
 jimag/node_modules/
@@ -28,4 +29,10 @@ jimag/env/
 **/env/
 **/__pycache__/
 jimag/None/
-jimag/None/media/user_1
+jimag/None/media/
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+.DS_Store
+Thumbs.db
