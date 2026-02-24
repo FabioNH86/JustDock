@@ -1,0 +1,45 @@
+version: '3.8'
+services:
+  # Base de datos de tareas
+  redis:
+    image: redis:alpine
+    container_name: jimag_redis
+    command: redis-server --port 6380
+    network_mode: "host"
+
+  # La aplicación Web
+  web:
+    build: .
+    container_name: jimag_web
+    volumes:
+      - .:/app
+      - jimag_tmp:/tmp
+    environment:
+      - SCRIPTDIR=/app/jimag-scripts
+      - HOMEDIR=/app
+      - CHIMERA_PATH=/app/chimera/bin/chimera
+    network_mode: "host"
+    working_dir: /app/jimag
+    depends_on:
+      - redis
+    command: python3 manage.py runserver 0.0.0.0:8000
+
+  # El obrero que hace el docking
+  worker:
+    build: .
+    container_name: jimag_worker
+    volumes:
+      - .:/app
+      - jimag_tmp:/tmp
+    environment:
+      - SCRIPTDIR=/app/jimag-scripts
+      - HOMEDIR=/
+      - CHIMERA_PATH=/app/chimera/bin/chimera
+    network_mode: "host"
+    working_dir: /app/jimag
+    depends_on:
+      - redis
+    command: python3 manage.py rqworker
+  
+volumes:
+  jimag_tmp:

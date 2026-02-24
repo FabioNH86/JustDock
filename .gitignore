@@ -36,3 +36,10 @@ db.sqlite3
 db.sqlite3-journal
 .DS_Store
 Thumbs.db
+
+# Generados en Dockerización
+*.pdb
+params.txt
+*.csv
+ADFRsuite_x86_64Linux_1.0.tar.gz
+/media

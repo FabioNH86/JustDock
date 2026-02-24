@@ -64,7 +64,9 @@
         </ul>
 
         <div class="tab-content" id="tab1">
-            <pre>{{ vina_results }}</pre>
+            <div style="background: #222; color: #0f0; padding: 15px; border-radius: 5px; font-family: monospace;">
+                <pre style="margin: 0;">{{ vina_results }}</pre>
+            </div>
         </div>
         <div class="tab-content" id="tab2">
             <style>
@@ -84,8 +86,8 @@
             <div id="app"></div>
             <script type="text/javascript" src="{% static 'dashb/viewer_bundle.js' %}"
                 defer
-                    data-conformers="{{ current_job_files.conformers }}";
-                    data-receptor="{{ current_job_files.receptor }}";>
+                data-conformers="{{ current_job_files.conformers }}"
+                data-receptor="{{ current_job_files.receptor }}">
             </script>
         </div>
         <div class="tab-content" id="tab3">

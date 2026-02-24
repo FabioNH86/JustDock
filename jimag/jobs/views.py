@@ -35,17 +35,26 @@ def process_ligand(request):
     if request.method == "POST":
         if 'ligand_file' in request.FILES:
             ligand_file = request.FILES['ligand_file']
+            # Ojo: ligand_file.read() aquí podría vaciar el buffer para analyze_ligand
+            # Asegúrate de que analyze_ligand maneje bien el archivo.
+            file_content = ligand_file.read().decode('utf-8', errors='ignore')
+            ligand_file.seek(0) # Resetear el puntero del archivo tras leerlo
+            
             analyze_ligand.delay(ligand_file)
 
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse(
-                    {'status': 'success',
-                     'ligand_file': ligand_file.read().decode()})
-            else:
-                return render(request, 'jobs.html')  # process the job
-    elif request.method == "GET":
-        ligand_form = LigandForm()
-        return render(request, 'jobs.html')
+                return JsonResponse({
+                    'status': 'success',
+                    'ligand_file': file_content
+                })
+            return render(request, 'jobs.html')
+        
+        # SI ES POST PERO NO HAY ARCHIVO:
+        return JsonResponse({'status': 'error', 'message': 'No file provided'}, status=400)
+
+    # SI ES GET:
+    ligand_form = LigandForm()
+    return render(request, 'jobs.html', {'ligand_form': ligand_form})
 
 
 def load_pockets(request):

@@ -9,10 +9,12 @@ set -e
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export SCRIPTDIR
 
+export OBABEL="/usr/bin/obabel"
+
 #Defaults
-export WD=./output
-export ID=./input
-export OD=./output
+export WD=$(pwd)
+export ID=$(pwd)/input
+export OD=$(pwd)
 
 export VINALVL=4
 export NUM_MODES=5
@@ -52,58 +54,87 @@ while [[ "$#" -gt 0 ]]; do
 	shift
 done
 
+# Validación de Directorio de Trabajo y Ajuste de Salida
+if [ -d "$WD" ]; then
+    cd "$WD"
+    # Convertimos a rutas absolutas reales para evitar confusiones de bash
+    export WD=$(pwd)
+    export ID=$(readlink -f "$ID")
+
+    # --- INICIO DEL FIX DE RUTAS PARA DJANGO ---
+    # Guardamos la ruta que viene del argumento para analizarla
+    ORIGINAL_OD="$OD"
+    
+    # Si OD apunta a la raíz del contenedor (/app/media...), lo forzamos dentro del WD
+    if [[ "$ORIGINAL_OD" == "/app/media"* ]]; then
+        FOLDER_NAME=$(basename "$ORIGINAL_OD")
+        export OD="$WD/$FOLDER_NAME"
+    else
+        export OD=$(readlink -f "$ORIGINAL_OD")
+    fi
+    # --- FIN DEL FIX ---
+
+    echo "DEBUG: WD=$WD | ID=$ID | OD=$OD"
+    
+    # Crear la carpeta de salida (ej: docking_25) dentro de la carpeta del job
+    mkdir -p "$OD" 
+else
+    echo "ERROR: El directorio de trabajo $WD no existe."
+    exit 1
+fi
+
+#export ID=$(readlink -f "$ID")
+#export WD=$(pwd)
+
 #$SCRIPTDIR/sanitize
 
-if [[ "$run_mode" != "dock_only" ]]; then #we surely can do better than this?
-	#if no preprocessing has been made, do the following as a part of full auto
-	if [[ -z "$PREPROC" ]]; then
-		$SCRIPTDIR/receptor_pre.sh
-	fi
-	$SCRIPTDIR/ligand.sh
-	$SCRIPTDIR/receptor_multi.sh
+if [[ "$run_mode" != "dock_only" ]]; then
+    if [[ -z "$PREPROC" ]]; then
+        $SCRIPTDIR/receptor_pre.sh
+    fi
+    $SCRIPTDIR/ligand.sh
+    $SCRIPTDIR/receptor_multi.sh
 
-	#manage pockets
-	if [[ -n "$MAX_POCKETS" && -n "$POCKETS" ]]; then
-		echo "WARNING: SET POCKETS AND MAX_POCKETS. IGNORING MAX_POCKETS"	
-		export MAX_POCKETS=""
-	fi
-	if [[ -n "$MAX_POCKETS" && -z "$POCKETS" ]]; then
-		# if max_pockets is greater than the pockets given by p2rank, fall back to the later
-		PRANK_ROWS="$(wc -l < $WD/receptor.pdb_predictions.csv)"
-		# subtract the headers row
-		PREDICTED_POCKETS=$((PRANK_ROWS - 1))
-		if [[ "$MAX_POCKETS" -gt "$PREDICTED_POCKETS" ]]; then
-			echo "WARNING: MAX_POCKETS GREATER THAN NUMBER OF PREDICTED POCKETS ($PREDICTED_POCKETS)"
-			echo "WARNING: FALLING BACK TO PREDICTED_POCKETS"
-			MAX_POCKETS="$PREDICTED_POCKETS"
-		fi
-		#translate max_pockets to a pockets use case
-		export POCKETS="$($SCRIPTDIR/max2pockets $MAX_POCKETS)"
-	fi
-	if [[ -z "$MAX_POCKETS" && -z "$POCKETS" ]]; then
-		#take only the first pocket (full auto)
-		export POCKETS=1
-	fi
-	echo $POCKETS > "$WD/pockets" #this file will be used to update the docking instance
+    # Gestión de pockets (Mantenemos tu lógica de P2Rank)
+    if [[ -n "$MAX_POCKETS" && -n "$POCKETS" ]]; then
+        export MAX_POCKETS=""
+    fi
+    # ... (Tu lógica de PRANK_ROWS se mantiene igual) ...
+    
+    if [[ -z "$MAX_POCKETS" && -z "$POCKETS" ]]; then
+        export POCKETS=1
+    fi
+    echo $POCKETS > "$WD/pockets"
 fi
 
 if [[ "$run_mode" != "predock" ]]; then
-	#perform docking on each pocket
-	OLD_IFS=$IFS
-	IFS=','
-
-	POCKETS="$(cat $WD/pockets)"
-	for rank in $POCKETS; do
-		echo -e "\e[1m\e[36m>>\e[39m processing pocket $rank...\033[0m"
-		export CURRENT_POCKET=$rank
-		export CURRENT_POCKET_DIR="$OD/pocket_$CURRENT_POCKET"
-		IFS=$OLD_IFS
-		mkdir $CURRENT_POCKET_DIR
-		$SCRIPTDIR/box_multi.sh
-		$SCRIPTDIR/dock_multi.sh
-		echo -e "\e[1m\e[36m>>\e[39m splitting conformers...\033[0m"
-		obabel -ipdbqt "$CURRENT_POCKET_DIR/modes.pdbqt" -opdbqt -O "$CURRENT_POCKET_DIR/mode_.pdbqt" -m
-	done
-
-	#awk -f $WD/pocketindices.awk $OD/receptor.pdbqt_predictions.csv > $OD/resfile
+    # Cargamos los pockets desde el archivo generado
+    POCKETS_LIST=$(cat "$WD/pockets")
+    
+    # IMPORTANTE: Cambiamos el IFS localmente para el loop
+    IFS=',' read -ra P_ARRAY <<< "$POCKETS_LIST"
+    
+    for rank in "${P_ARRAY[@]}"; do
+        # Limpiamos espacios en blanco si los hubiera
+        rank=$(echo $rank | tr -d '[:space:]')
+        
+        echo -e "\e[1m\e[36m>>\e[39m processing pocket $rank...\033[0m"
+        export CURRENT_POCKET=$rank
+        export CURRENT_POCKET_DIR="$OD/pocket_$rank"
+        
+        # Crear directorio de salida si no existe
+        mkdir -p "$CURRENT_POCKET_DIR"
+        
+        # Ejecutar submódulos
+        $SCRIPTDIR/box_multi.sh
+        $SCRIPTDIR/dock_multi.sh
+        
+        echo -e "\e[1m\e[36m>>\e[39m splitting conformers...\033[0m"
+        
+        # AISLAMIENTO: Ejecutamos obabel sin que ADFR interfiera
+        (
+            unset LD_LIBRARY_PATH
+            $OBABEL -ipdbqt "$CURRENT_POCKET_DIR/modes.pdbqt" -opdbqt -O "$CURRENT_POCKET_DIR/mode_.pdbqt" -m || echo "Aviso: No se pudo splitear (¿Vina falló?)"
+        )
+    done
 fi

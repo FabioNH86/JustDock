@@ -1,14 +1,28 @@
 #!/bin/bash
-#Simula las funciones realizadas por process_pockets en jobs/tasks.py
-SCRIPTPATH=$SCRIPTDIR/receptor.py
-CHIMERACMD=$HOMEDIR/.local/src/chimera/bin/chimera
-#CHIMERADIR=$HOMEDIR/.local/src/chimera/bin
-PRANKCMD=$HOMEDIR/.local/src/p2rank_2.4/prank
-PRANKCONF=$SCRIPTDIR/configs/blind.groovy
+set -e
 
-export IF=$ID/receptor.pdb
-obabel $ID/receptor.* -O $WD/receptor.pdb
-export OF=$WD/receptor.pdb
+# 1. Definir rutas internas de Docker (donde instalamos todo)
+CHIMERACMD="/app/chimera/bin/chimera"
+PRANKCMD="/app/p2rank_2.4/prank"
+# Usamos SCRIPTDIR que viene exportado desde multi.sh
+SCRIPTPATH="$SCRIPTDIR/receptor.py"
+PRANKCONF="$SCRIPTDIR/configs/blind.groovy"
 
-$CHIMERACMD --nogui $SCRIPTPATH
-$PRANKCMD predict -c $PRANKCONF -f $OF -o $WD
+echo ">> sanitizing receptor with obabel..."
+# El receptor.pdb ya debería estar en el WD (donde multi.sh hizo 'cd')
+#obabel receptor.pdb -O receptor.pdb
+/usr/bin/obabel receptor.pdb -O receptor_clean.pdb
+
+# EXPORTAR para que el script de Python las vea
+export IF="receptor.pdb"
+export OF="receptor.pdb"
+
+# 2. Ejecutar Chimera para limpiar la proteína
+echo ">> running chimera script..."
+$CHIMERACMD --nogui --script "$SCRIPTPATH"
+
+# 3. Ejecutar P2Rank
+# IMPORTANTE: Eliminamos el flag -c si no es estrictamente necesario, 
+# o aseguramos que la ruta al .groovy sea absoluta.
+echo ">> predicting pockets with P2Rank..."
+$PRANKCMD predict -f receptor.pdb -o .

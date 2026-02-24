@@ -75,13 +75,33 @@ def results(request, current_job=None, current_docking=None, current_pocket=None
         'receptor': f"/media/{wd}receptor.pdbqt",
     }
     
-    vina_file = os.path.join(settings.MEDIA_ROOT, cpd, "scores.txt")
-    
+    # Cambia "scores.txt" por "vina.log"
+    vina_file = os.path.join(settings.MEDIA_ROOT, cpd, "vina.log")
+
+    # views.py (Sección de lectura de log corregida)
+
     try:
         with open(vina_file, 'r') as file:
-            vina_results = file.read()
+            content = file.read()
+            
+            # Buscamos la tabla. Usamos split y tomamos el ÚLTIMO elemento
+            # por si el archivo tiene basura de ejecuciones anteriores.
+            if "mode |   affinity" in content:
+                parts = content.split("mode |   affinity")
+                # Tomamos la última parte y limpiamos cabeceras repetidas
+                raw_table = parts[-1].split("Writing output")[0].strip()
+                
+                # Filtramos líneas que no son datos (como los dist from best mode repetidos)
+                lines = raw_table.split('\n')
+                clean_lines = [l for l in lines if "|" not in l and l.strip()]
+                
+                vina_results = " mode | affinity (kcal/mol) | dist from best mode\n"
+                vina_results += "------|---------------------|---------------------\n"
+                vina_results += "\n".join(clean_lines)
+            else:
+                vina_results = "Procesando resultados..."
     except (FileNotFoundError, OSError):
-        vina_results = None
+        vina_results = "Cargando energías..."
 
     # Preparar lista de pockets para el selector del template
     try:

@@ -95,6 +95,7 @@ DATABASES = {
         'NAME': 'db',
         'USER': 'admin',
         'PASSWORD': 'adminpasswd',
+        'HOST': '127.0.0.1',
         'PORT': '',
     }
 }

@@ -1,10 +1,11 @@
+# -*- coding: utf-8 -*-
 import chimera
 import os
 
 from chimera import runCommand
 
-inputfile = os.environ.get("IF")
-outputfile = os.environ.get("OF")
+inputfile = os.environ.get("IF") or "receptor.pdb"
+outputfile = os.environ.get("OF") or "receptor.pdb"
 chains = os.environ.get("CHAINS")
 
 # MODULE
@@ -26,9 +27,16 @@ def chain_only(receptor, chain_names):
 
 
 # MAIN
+# Añadimos un print para depurar en el log de Docker si algo falla
+print("Chimera intentando abrir: %s" % inputfile)
 
-model = chimera.openModels.open(inputfile)
-receptor = model[0]
+try:
+    model = chimera.openModels.open(inputfile)
+    receptor = model[0]
+except Exception as e:
+    print("Error abriendo el modelo: %s" % str(e))
+    # En modo --nogui, forzamos la salida si no hay archivo
+    raise
 
 if chains:
     chain_names = chains.split(",")
@@ -40,3 +48,4 @@ chain_only(receptor, chain_names)
 prot_only(receptor)
 write_output = "write format pdb 0 %s" % outputfile
 runCommand(write_output)
+print("Chimera guardó el resultado en: %s" % outputfile)

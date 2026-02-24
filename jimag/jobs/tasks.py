@@ -67,7 +67,7 @@ def update_setting(cmd, flag, value):
 @job
 def run_docking_script(user_id, job_id, docking_settings):
     print(f"DEBUG: Starting task for user {user_id}", flush=True)
-
+    logger = logging.getLogger(__name__)
 
     try:
         django_job = Job.objects.get(id=job_id)
@@ -77,7 +77,7 @@ def run_docking_script(user_id, job_id, docking_settings):
         print(f"ERROR: Job {job_id} not found in database.", flush=True)
         return "Job no encontrado en la base de datos"
     
-    logger = logging.getLogger(__name__)
+    
 
     # --- INICIALIZACIÓN Y VALIDACIÓN DEL JOB ---
     try:
@@ -194,61 +194,54 @@ def run_docking_script(user_id, job_id, docking_settings):
     # --- CICLO DE DOCKING (LOS RUNS) ---
     print("DEBUG: Entering docking runs loop", flush=True)
     try:
-        script_command.extend(["--output", ""])
-        num_runs = int(docking_settings.get('num_runs', 1))
+        # 1. Obtenemos las instancias necesarias una sola vez
+        p = Protein.objects.get(job_id=job_id)
+        l = Ligand.objects.get(job_id=job_id)
         
-        for run in range(1, num_runs + 1):
-            print(f"DEBUG: Starting Run #{run}", flush=True)
-            
-            p = Protein.objects.get(job_id=job_id)
-            l = Ligand.objects.get(job_id=job_id)
-            
-            docking = Docking.objects.create(
-                user=User.objects.get(id=user_id),
-                job=Job.objects.get(id=job_id),
-                protein=p,
-                ligand=l,
-                pockets=pocket_str
-            )
-            
-            p.docking, l.docking = docking.id, docking.id
-            p.save()
-            l.save()
+        # 2. CREAMOS EL DOCKING PRIMERO (La Solución Elegante)
+        # Usamos las variables que ya tienes definidas
+        docking = Docking.objects.create(
+            user=User.objects.get(id=user_id),
+            job=django_job,
+            protein=p,
+            ligand=l,
+            pockets=pocket_str
+        )
+        
+        # Actualizamos las relaciones
+        p.docking, l.docking = docking.id, docking.id
+        p.save()
+        l.save()
 
-            output_dir = f"{working_dir}/docking_{docking.id}"
-            os.makedirs(output_dir, exist_ok=True)
+        # 3. DEFINIMOS LA RUTA DE SALIDA CON EL ID REAL
+        docking_id = str(docking.id)
+        output_dir = os.path.join("/app/media/user_1/job_" + str(job_id), f"docking_{docking_id}")
+        os.makedirs(output_dir, exist_ok=True)
 
-            # Helper to update arguments in the list
-            def update_arg(cmd, flag, new_val):
-                if flag in cmd:
-                    idx = cmd.index(flag)
-                    cmd[idx+1] = new_val
-                else:
-                    cmd.extend([flag, new_val])
+        # 4. ACTUALIZAMOS script_command (Manteniendo el nombre de la variable)
+        # Limpiamos y reconfiguramos para el docking real
+        script_command = [
+            script_path, 
+            "--input", input_dir, 
+            "--wd", working_dir,
+            "--output", output_dir, # Usamos la carpeta con el ID
+            "--vinalvl", str(docking_settings.get('exhaustiveness', 8)), 
+            "--num_modes", str(docking_settings.get('num_modes', 9)), 
+            "--run_mode", "dock_only",
+            "--pockets", pocket_str
+        ]
 
-            update_arg(script_command, "--run_mode", "dock_only")
-            update_arg(script_command, "--output", output_dir)
-
-            #update_setting(script_command, "--run_mode", "dock_only")
-            #update_setting(script_command, "--output", output_dir)
-            
-            os.makedirs(output_dir, exist_ok=True)
-            
-            print(f"DEBUG: Launching run_script for Run {run}: {' '.join(script_command)}", flush=True)
-            
-            if not run_script(script_command, django_job):
-                print(f"DEBUG: Run {run} FAILED", flush=True)
-                #job.meta['progress'] = f"Run {run} failed"
-                django_job.status = 'failed'
-                django_job.save()
-                return f"Run {run} failed"
-            
-            print(f"DEBUG: Run {run} completed successfully", flush=True)
+        # 5. EJECUTAMOS EL DOCKING UNA SOLA VEZ (Sin el bucle for innecesario)
+        print(f"DEBUG: Launching Elegant Docking Run: {' '.join(script_command)}", flush=True)
+        
+        if not run_script(script_command, django_job):
+            django_job.status = 'failed'
+            django_job.save()
+            return "Docking failed"
 
         # FINALIZACIÓN EXITOSA
         django_job.status = 'finished'
         django_job.save()
-        print("DEBUG: All docking runs finished successfully", flush=True)
         return "Script completed successfully"
 
     except Exception as e:
@@ -282,8 +275,8 @@ def process_pockets(protein_file, chains):
     script_dir = os.environ.get('SCRIPTDIR') or f"{home_dir}/.local/src/jimag-scripts"
 
     # 2. Configurar binarios y scripts usando las rutas seguras
-    chimera_bin = f"{home_dir}/.local/src/chimera/bin/chimera"
-    prank_bin = f"{home_dir}/.local/src/p2rank_2.4/prank"
+    chimera_bin = "/.local/src/chimera/bin/chimera"
+    prank_bin = "/.local/src/p2rank_2.4/prank"
     receptor_script = f"{script_dir}/receptor.py"
     prank_conf = f"{script_dir}/configs/blind.groovy"
 
@@ -298,16 +291,27 @@ def process_pockets(protein_file, chains):
         chainspdb.close() # Lo cerramos para que los procesos externos puedan escribir
 
         # --- PASO 1: CHIMERA (Limpieza de cadenas) ---
-        # Usamos las variables seguras que definimos arriba
-        clean_chains_cmd = f'export IF={inputpdb.name} OF={chainspdb.name} CHAINS={chains}; {chimera_bin} --nogui {receptor_script}'
-        logger.info(f"Ejecutando Chimera: {clean_chains_cmd}")
-        subprocess.run(clean_chains_cmd, shell=True, check=True)
+        # Preparamos el entorno para el subproceso
+        env = os.environ.copy()
+        env.update({
+            "IF": inputpdb.name,
+            "OF": chainspdb.name,
+            "CHAINS": chains
+        })
+
+        clean_chains_cmd = [chimera_bin, "--nogui", receptor_script]
+        logger.info(f"Ejecutando Chimera en {inputpdb.name} para cadenas {chains}")
+        subprocess.run(clean_chains_cmd, env=env, check=True)
         
         # --- PASO 2: P2RANK (Predicción de bolsillos) ---
-        # Usamos las variables seguras que definimos arriba
-        pockets_cmd = f'{prank_bin} predict -c {prank_conf} -f {chainspdb.name} -o /tmp/'
-        logger.info(f"Ejecutando P2Rank: {pockets_cmd}")
-        subprocess.run(pockets_cmd, shell=True, check=True)
+        pockets_cmd = [
+            prank_bin, "predict", 
+            "-c", prank_conf, 
+            "-f", chainspdb.name, 
+            "-o", "/tmp/"
+        ]
+        logger.info(f"Ejecutando P2Rank sobre {chainspdb.name}")
+        subprocess.run(pockets_cmd, check=True)
         
         # Rutas de salida
         pockets_csv = f'{chainspdb.name}_predictions.csv'
