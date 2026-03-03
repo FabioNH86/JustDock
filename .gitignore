@@ -4,6 +4,7 @@ vina_1.2.5/
 p2rank_2.4.tar.gz
 chimera/
 adfr/
+media/
 
 # jimag-scripts
 jimag-scripts/etc/
@@ -36,3 +37,4 @@ db.sqlite3
 db.sqlite3-journal
 .DS_Store
 Thumbs.db
+*.gz
