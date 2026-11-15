@@ -7,88 +7,54 @@ from django.conf import settings
 import shutil
 import zipfile
 import json
-from django.core.exceptions import ObjectDoesNotExist
-import logging
 
-logger = logging.getLogger(__name__)
 
 # Create your views here.
 def results(request, current_job=None, current_docking=None, current_pocket=None):
+    #everything is done on basis of the current user
     user = request.user
-    # Ordenamos por ID descendente para ver lo más reciente primero
-    jobs = Job.objects.filter(user=user).order_by('-id')
+    jobs = Job.objects.filter(user=user)
 
-    if not jobs.exists():
-        return render(request, 'dashboard.html', {'error': 'No tienes trabajos creados.'})
-
-    # Determinar el Job actual
+    #current_job starts with a non-null value if the user directly visits the job id via url
     if not current_job:
-        latest_job_id = user.profile.latest_job
-        if latest_job_id and jobs.filter(pk=latest_job_id).exists():
-            current_job = latest_job_id
+        latest_job = user.profile.latest_job
+        if not latest_job: #if latest_job is null
+            # todo: consider the case where the user has no jobs
+            # TODO: This is redundant with the lines in delete_job()
+            job_ids = jobs.values_list('id', flat=True)
+            first_job = min(job_ids)
+            current_job = first_job
         else:
-            current_job = jobs.first().id
+            current_job = latest_job
+    if Job.objects.get(pk=current_job).user != request.user:
+        return HttpResponseForbidden("You don't have access to this job.")
 
-    # Verificación de seguridad y obtención de instancia
-    try:
-        job_instance = Job.objects.get(pk=current_job)
-    except Job.DoesNotExist:
-        return redirect('results') # O manejar el error
-
-    if job_instance.user != user:
-        return HttpResponseForbidden("No tienes acceso a este trabajo.")
-
-    # Obtener dockings asociados
-    dockings = Docking.objects.filter(job=job_instance)
-
-    # Manejo de caso sin resultados aún
-    if not dockings.exists():
-        return render(request, 'dashboard.html', {
-            'job_info': job_info(current_job) if job_instance.status == 'finished' else None,
-            'current_job': current_job,
-            'jobs': list(jobs),
-            'no_dockings': True,
-            'status': job_instance.status
-        })
-    
-    # Determinar Docking actual
+    dockings = Docking.objects.filter(job=current_job)
     if current_docking == None or current_docking == 0:
-        current_docking = dockings.first().id
-            
-    docking_instance = Docking.objects.get(pk=current_docking)
+        #find the first docking IN THE CURRENT JOB 
+        #TODO: cache this value so that it doesn't get calculated every time we change pockets in the same docking
+        docking_ids = dockings.values_list('id', flat=True)
+        first_docking = min(docking_ids)
+        current_docking = first_docking
+        #current_docking = Docking.objects.get(job=current_job).id
+    docking = current_docking
+    print("DOCKING: ", current_docking)
 
-    # Determinar Pocket actual
     if not current_pocket:
-        try:
-            # Separamos el string de pockets (ej: "1,2,3") y tomamos el primero
-            current_pocket = [int(p) for p in docking_instance.pockets.split(',')][0]
-        except (ValueError, IndexError, AttributeError):
-            current_pocket = 1
+        current_pocket = [int(pocket) for pocket in Docking.objects.get(pk=docking).pockets.split(',')][0]
 
-    # --- CORRECCIÓN DE RUTAS ---
     wd = f"user_{user.id}/job_{current_job}/"
-    # Cambiado 'docking' por 'current_docking'
-    cpd = f"{wd}docking_{current_docking}/pocket_{current_pocket}/" 
+    cpd = f"{wd}docking_{docking}/pocket_{current_pocket}/" # current pocket directory
 
     current_job_files = {
         'conformers': f"/media/{cpd}modes.pdbqt",
         'receptor': f"/media/{wd}receptor.pdbqt",
     }
-    
-    vina_file = os.path.join(settings.MEDIA_ROOT, cpd, "scores.txt")
-    
-    try:
-        with open(vina_file, 'r') as file:
-            vina_results = file.read()
-    except (FileNotFoundError, OSError):
-        vina_results = None
+    vina_file = f"{settings.MEDIA_ROOT}/{cpd}scores.txt"
+    with open(vina_file, 'r') as file:
+        vina_results = file.read()
 
-    # Preparar lista de pockets para el selector del template
-    try:
-        pocket_list = [int(p) for p in docking_instance.pockets.split(',')]
-    except:
-        pocket_list = [current_pocket]
-
+    print("DOCKINGS: ", dockings)
     return render(request, 'dashboard.html', {
         'job_info': job_info(current_job),
         'current_job': current_job,
@@ -96,9 +62,10 @@ def results(request, current_job=None, current_docking=None, current_pocket=None
         'current_docking' : current_docking,
         'current_pocket': current_pocket,
         'vina_results': vina_results,
-        'jobs': list(jobs),
-        'dockings': list(dockings),
-        'pockets': pocket_list 
+        #'jobs': [job for job in Job.objects.filter(user=user)],
+        'jobs': list(jobs.order_by('-id')),
+        'dockings': list(Docking.objects.filter(job=current_job)),
+        'pockets': [int(pocket) for pocket in dockings.get(pk=docking).pockets.split(',')]  # current job pockets
     })
 
 
