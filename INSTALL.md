@@ -64,9 +64,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 deactivate
 
-sudo apt install redis-server default-jdk default-jre npm tmux
+sudo apt install redis-server openjdk-17-jre-headless npm tmux
 npm install
 ```
+
+> **Java version:** P2Rank 2.4 only works with **Java 17**. Newer releases (e.g. the Java 25 installed by `default-jdk` on recent Ubuntu) make it fail with `Unsupported class file major version 69`. Java 17 can live alongside the system's default Java; [section 6](#p2rank-use-java-17) points P2Rank to it.
 
 The JavaScript bundles in `static/` are already built. Rebuild them with `npx webpack` only if you modify the `.ts` sources.
 
@@ -154,6 +156,23 @@ chmod +x ~/.local/src/vina_1.2.5/*
 sudo apt install openbabel
 ```
 
+### P2Rank: use Java 17
+
+P2Rank 2.4 bundles Groovy 3.0.9, which cannot read class files from Java versions newer than 17. Make its launcher always use Java 17, without changing the system's default Java:
+
+```bash
+sed -i 's|^#JAVA_HOME="/opt/java8"|#JAVA_HOME="/opt/java8"\n# P2Rank 2.4 (Groovy 3.0.9) does not support Java > 17\nJAVA_HOME="${PRANK_JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"|' ~/.local/src/p2rank_2.4/prank
+```
+
+If Java 17 is installed somewhere else, set `PRANK_JAVA_HOME` to its folder. Check that P2Rank runs:
+
+```bash
+cd ~/.local/src/p2rank_2.4
+./prank predict -c ~/.local/src/justdock/jimag-scripts/configs/blind.groovy -f test_data/1fbl.pdb -o /tmp/prank_test
+```
+
+It should end with `finished successfully` and create `/tmp/prank_test/1fbl.pdb_predictions.csv`.
+
 ### Patch `prepare_ligand4.py`
 
 ```bash
@@ -171,6 +190,8 @@ cd ~/.local/src/justdock/jimag-scripts
 chmod +x *.sh *.py *.awk sanitize setdirs
 gcc -O2 -o max2pockets max2pockets.c -lm
 ```
+
+> **Do not run `setdirs`.** It is a legacy helper for the standalone scripts: it rewrites every `*.sh` in the folder with `sed`, and its patterns also overwrite lines the web app depends on (for example the `--wd` option in `multi.sh`). The server does not need it; `tri.sh` sets all paths. If you do use it for standalone runs, pass the project folder as the first argument (`./setdirs /path/to/project`); otherwise it defaults to the `jimag-scripts/` folder itself.
 
 ## 8. Environment variables (optional)
 
@@ -222,3 +243,16 @@ Installation is complete when <http://localhost:8000> loads in the browser.
 | `gnome-terminal: command not found` | You are running an old `tri.sh`. Update to the current version, which uses `tmux` in the current terminal. |
 | Stuck at a `->` prompt in MariaDB | The statement wasn't closed. Press `Ctrl+C`, then type `quit;`. |
 | Docking jobs fail to find scripts | Make sure `jimag/` and `jimag-scripts/` are sibling folders. `./inicio` prints the `SCRIPTDIR` it is using. |
+| P2Rank fails with `Unsupported class file major version 69` (or another number above 61) in `~/.local/src/p2rank_2.4/log/prank.log` | P2Rank is running with a Java newer than 17. Install `openjdk-17-jre-headless` and apply [P2Rank: use Java 17](#p2rank-use-java-17). |
+| `/results/` returns *Internal Server Error* with `User has no profile` | Old code version. The current one creates each user's `Profile` automatically (on sign-up, when a job is created, and when results are opened), including for users created before the fix. No migration is needed. |
+| Deleting a job returns *Internal Server Error* | Old code version. The current `delete_job` handles deleting your most recent or your only job, and returns `403` for jobs that don't exist or belong to another user. |
+| `AttributeError: 'super' object has no attribute 'dicts'` (in `django/template/context.py`) | Django 5.0 is not compatible with Python 3.14. Upgrade Django inside `.venv` (`pip install "django>=5.2"`) or create the virtual environment with an older Python. |
+
+### Where to find errors
+
+| What failed | Where to look |
+| --- | --- |
+| Docking pipeline (scripts, Vina, Open Babel) | Top pane of the `jimag` tmux session (RQ worker), lines prefixed with `BASH_LOG:` |
+| Web pages (HTTP 500 errors) | Bottom-left pane of the `jimag` tmux session (Django), or `jimag/script_output.log` |
+| Pocket prediction | `~/.local/src/p2rank_2.4/log/prank.log` |
+| A specific job's files | `jimag/media/user_<user-id>/job_<job-id>/` |

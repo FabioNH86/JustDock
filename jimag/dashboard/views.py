@@ -1,6 +1,6 @@
 import os
 from django.shortcuts import render, redirect
-from jobs.models import Job, Docking, Protein, Ligand
+from jobs.models import Job, Docking, Protein, Ligand, Profile
 from django.http import FileResponse, HttpResponse, HttpResponseForbidden
 from django.http import HttpResponse
 from django.conf import settings
@@ -23,7 +23,8 @@ def results(request, current_job=None, current_docking=None, current_pocket=None
 
     # Determinar el Job actual
     if not current_job:
-        latest_job_id = user.profile.latest_job
+        profile, _ = Profile.objects.get_or_create(user=user)
+        latest_job_id = profile.latest_job
         if latest_job_id and jobs.filter(pk=latest_job_id).exists():
             current_job = latest_job_id
         else:
@@ -131,28 +132,28 @@ def job_info(job_id):
 
 def delete_job(request, job_id):
     user = request.user
-    job_instance = Job.objects.get(pk=job_id)
-    job_dir = f"{settings.MEDIA_ROOT}/user_{user.id}/job_{job_id}"
-    # TODO: remove redundant code
-    if request.method == 'POST':
-        if job_id == user.profile.latest_job:
-            try:
-                shutil.rmtree(job_dir)
-            except OSError as e:
-                print(f"Error deleting directory: {e}")
+    if request.method != 'POST':
+        return redirect('results')
 
-            job_instance.delete()
-            user.profile.latest_job = None
-            user.profile.save()
-            # user.profile.latest_job.delete()
-            user_job_ids = Job.objects.filter(user=user).values_list('id', flat=True)
-            first_job = min(user_job_ids)
-            return redirect('results', current_job=first_job)
-        else:
-            try:
-                shutil.rmtree(job_dir)
-            except OSError as e:
-                print(f"Error deleting directory: {e}")
+    # Solo se pueden borrar jobs propios; si no existe o es de otro usuario, se ignora
+    job_instance = Job.objects.filter(pk=job_id, user=user).first()
+    if job_instance is None:
+        return HttpResponseForbidden("No tienes acceso a este trabajo.")
 
-            job_instance.delete()
-            return redirect('results')
+    job_dir = os.path.join(settings.MEDIA_ROOT, f"user_{user.id}", f"job_{job_id}")
+    try:
+        shutil.rmtree(job_dir)
+    except OSError as e:
+        print(f"Error deleting directory: {e}")
+
+    job_instance.delete()
+
+    profile, _ = Profile.objects.get_or_create(user=user)
+    if profile.latest_job == job_id:
+        # Apuntamos al job más reciente que quede (o None si ya no hay ninguno)
+        remaining = Job.objects.filter(user=user).order_by('-id').first()
+        profile.latest_job = remaining.id if remaining else None
+        profile.save()
+
+    # results() elige el job a mostrar y maneja el caso sin jobs
+    return redirect('results')

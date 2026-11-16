@@ -115,7 +115,11 @@
             <p>Pockets: {{ job_info.pockets }}</p>
         </div>
         <div class="tab-content" id="tab5">
+            {% if current_job %}
             <a href="{% url 'download_output' current_job %}" class="btn btn-primary">Download output</a>
+            {% else %}
+            <p>{{ error|default:"No hay resultados para descargar." }}</p>
+            {% endif %}
         </div>
     </div>
     <script src="{% static 'dashb/dashboard.js' %}"></script>
