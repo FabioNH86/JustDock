@@ -71,6 +71,11 @@ function submitDockingForm() {
         dockingFormData.append('preprocDone', 1);
     }
 
+    //show the full-screen loader while the job is uploaded and queued (defined in nav.html)
+    if (window.showPageLoader) {
+        window.showPageLoader('Submitting your job', 'Uploading your molecules and queuing the docking run…');
+    }
+
     //send request with filled form
     fetch(dockingForm.action, {
         method: 'POST',
@@ -88,6 +93,8 @@ function submitDockingForm() {
             }
         })
         .catch(error => {
+            if (window.hidePageLoader) window.hidePageLoader();
+            alert('The job could not be submitted. Please check your connection and try again.');
             console.error('Error:', error)
         });
 }

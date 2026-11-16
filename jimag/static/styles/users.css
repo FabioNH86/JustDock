@@ -1,33 +1,32 @@
-body {
-	margin: 0;
-	padding: 0;
-	text-align: center;
+.auth-wrap {
+    min-height: calc(100vh - 68px - 140px);
+    display: grid;
+    place-items: center;
+    padding: 48px 16px;
+    background:
+        radial-gradient(600px 300px at 50% 0%, rgba(56, 189, 248, .14), transparent 70%),
+        radial-gradient(600px 300px at 50% 100%, rgba(47, 118, 240, .10), transparent 70%);
 }
-
-input[type="text"] {
-	font-style: italic;
-	padding: 2px;
-	display: block;
-	width: 300px;
-	border-radius: 0;
-	border: 3px solid black;
-	margin: 20px auto;
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 36px 32px;
+    box-shadow: var(--shadow);
 }
-
-button {
-	font-weight: bold;
-	padding: 10px;
-	color: white;
-	background: black;
-	width: 300px;
-	margin: 20px auto;
-	margin-top: 0;
-	border: 0;
-	border-radius: 0;
-	cursor: pointer;
+.auth-card .card-icon { width: 44px; height: 44px; font-size: 1.05rem; border-radius: 12px; margin: 0 auto 18px; }
+.auth-card h1 { font-size: 1.6rem; text-align: center; margin-bottom: 6px; }
+.auth-card .sub { text-align: center; color: var(--text-muted); margin-bottom: 26px; }
+.auth-card .alert { margin-bottom: 18px; }
+.auth-card .btn { margin-top: 8px; }
+.auth-foot { text-align: center; margin-top: 22px; font-size: .9rem; color: var(--text-muted); }
+.input-icon { position: relative; }
+.input-icon i {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--blue-300);
+    font-size: .9rem;
+    pointer-events: none;
 }
-
-button:hover {
-	background-color: #00aaaa
-}
-
+.input-icon input { padding-left: 38px; }

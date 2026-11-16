@@ -9,6 +9,12 @@ window.clearPocketsTable = () => {
     table.innerHTML = '';
 }
 
+//show a loading / error message above the pockets table
+function setPocketsStatus(html) {
+    const status = document.getElementById('pocketsStatus');
+    if (status) status.innerHTML = html;
+}
+
 window.clearChainString = () => {
     const stringDiv = document.getElementById('chainstring');
     stringDiv.innerHTML = '';
@@ -17,6 +23,11 @@ window.clearChainString = () => {
 //request to compute pockets via p2rank
 document.getElementById("choosepocketsbtn").onclick=async() => {
     i = 0; //reset the count
+    setPocketsStatus(`
+        <div class="processing">
+            <div class="mol-spinner"><span></span><span></span><span></span></div>
+            <div>Predicting binding pockets…<small>Running P2Rank on your protein. This usually takes under a minute.</small></div>
+        </div>`);
     await window.deletePockets();
     await window.clearPocketsTable();
     var pForm = document.getElementById('uploadProteinForm');
@@ -41,6 +52,7 @@ document.getElementById("choosepocketsbtn").onclick=async() => {
         retrievePockets(data.job_id);
     })
     .catch(error => {
+        setPocketsStatus(`<div class="alert alert-error"><i class="fas fa-exclamation-circle"></i><span>Could not reach the server. Please try again.</span></div>`);
         console.error('Error:', error)
     });
 }
@@ -54,13 +66,14 @@ function retrievePockets(jobId) {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'pending') {
-	    i++;
-    	    table.innerHTML = `Loading (${i})... please wait!`;
-		if (i > 5) {
-    	    	    table.innerHTML = `This is taking too long,
-				       <br>
-				       something might have gone wrong.`;
-		}
+            i++;
+            if (i > 5) {
+                setPocketsStatus(`
+                    <div class="processing">
+                        <div class="mol-spinner"><span></span><span></span><span></span></div>
+                        <div>Still working…<small>This is taking longer than usual. If nothing appears soon, something might have gone wrong.</small></div>
+                    </div>`);
+            }
             setTimeout(() => {
                 retrievePockets(jobId);
             }, 5000);
@@ -73,17 +86,19 @@ function retrievePockets(jobId) {
             preprocDone = true;
 
             const parsedPocketsCSV = parsePocketsCSV(pocketsFile);
-	    if (parsedPocketsCSV != '') {
-            	displayPocketsTable(parsedPocketsCSV);
-	    } else {
-    		table.innerHTML = `Something went wrong!`
-	    }
+            if (parsedPocketsCSV != '') {
+                setPocketsStatus('');
+                displayPocketsTable(parsedPocketsCSV);
+            } else {
+                setPocketsStatus(`<div class="alert alert-error"><i class="fas fa-exclamation-circle"></i><span>No pockets could be predicted for this protein.</span></div>`);
+            }
         } else {
-	    // this won't work!
+            setPocketsStatus(`<div class="alert alert-error"><i class="fas fa-exclamation-circle"></i><span>Something went wrong while predicting pockets. Please try again.</span></div>`);
             console.log("retrievePockets: Something went wrong")
         }
     })
     .catch(error => {
+        setPocketsStatus(`<div class="alert alert-error"><i class="fas fa-exclamation-circle"></i><span>Could not reach the server. Please try again.</span></div>`);
         console.error('Error:', error)
     });
 };

@@ -1,35 +1,146 @@
-<!DOCTYPE html>
+{% extends 'nav.html' %}
 {% load static %}
-<head>
-    <link rel="stylesheet" href="{% static 'styles/running.css' %}">
-  <title>Running job {{ job_id }}</title>
-</head>
-<center>
-<div id="progress-div" class="monospace-box">Your job will start briefly...</div>
-</center>
 
+{% block title %}Running job {{ job_id }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'styles/running.css' %}?v=2">
+{% endblock %}
+
+{% block content %}
+<section class="run-hero">
+    <div class="run-stars" aria-hidden="true"></div>
+    <div class="container run-inner">
+        <div class="run-card" id="run-card" data-state="running">
+            <span class="run-badge"><i class="fas fa-hashtag"></i> Job {{ job_id }}</span>
+
+            <div class="run-visual">
+                {% include 'dock_scene.html' %}
+                <div class="run-result-icon run-ok"><i class="fas fa-check"></i></div>
+                <div class="run-result-icon run-fail"><i class="fas fa-times"></i></div>
+            </div>
+
+            <h1 id="run-title">Docking in progress</h1>
+            <p class="run-sub" id="run-sub">Your ligand is exploring the binding pockets. You can leave this tab open — we'll take you to the results when it's done.</p>
+
+            <ol class="run-steps" id="run-steps">
+                <li class="done"><span class="dot"><i class="fas fa-check"></i></span>Submitted</li>
+                <li data-step="queued"><span class="dot"></span>Queued</li>
+                <li data-step="running"><span class="dot"></span>Docking</li>
+                <li data-step="done"><span class="dot"></span>Results</li>
+            </ol>
+
+            <div class="progress-track run-progress"></div>
+
+            <div class="run-meta">
+                <div><span>Current stage</span><strong id="progress-div">Your job will start shortly…</strong></div>
+                <div><span>Elapsed</span><strong id="run-elapsed">0:00</strong></div>
+            </div>
+
+            <div class="run-actions" id="run-actions" hidden>
+                <a href="/jobs" class="btn btn-primary"><i class="fas fa-redo"></i> Try a new job</a>
+                <a href="/home" class="btn btn-ghost-light" id="run-back">Back to home</a>
+            </div>
+
+            <details class="run-log">
+                <summary><i class="fas fa-terminal"></i> Show activity log</summary>
+                <pre id="run-log"></pre>
+            </details>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
 <script>
   var job_id = "{{ job_id }}";
+  var startedAt = Date.now();
+  var lastProgress = null;
+  var finished = false;
+
+  var card = document.getElementById('run-card');
+  var progressDiv = document.getElementById('progress-div');
+  var logEl = document.getElementById('run-log');
+  var steps = document.querySelectorAll('#run-steps li[data-step]');
+  var order = ['queued', 'running', 'done'];
+
+  function setStep(current) {
+    var idx = order.indexOf(current);
+    steps.forEach(function (li, i) {
+      li.classList.toggle('done', i < idx || current === 'done');
+      li.classList.toggle('active', i === idx && current !== 'done');
+      li.querySelector('.dot').innerHTML = (i < idx || current === 'done') ? '<i class="fas fa-check"></i>' : '';
+    });
+  }
+
+  function log(text) {
+    var t = new Date().toLocaleTimeString();
+    logEl.textContent += '[' + t + '] ' + text + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function tick() {
+    if (finished) return;
+    var s = Math.floor((Date.now() - startedAt) / 1000);
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    document.getElementById('run-elapsed').textContent =
+      (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(sec).padStart(2, '0');
+  }
+  setInterval(tick, 1000);
+
+  function finish(ok, redirectUrl, message) {
+    finished = true;
+    clearInterval(progressInterval);
+    card.dataset.state = ok ? 'done' : 'failed';
+    if (ok) {
+      setStep('done');
+      document.getElementById('run-title').textContent = 'Docking complete!';
+      document.getElementById('run-sub').textContent = 'Taking you to your results…';
+      setTimeout(function () { window.location.href = redirectUrl; }, 1400);
+    } else {
+      document.getElementById('run-title').textContent = 'The job could not be completed';
+      document.getElementById('run-sub').textContent = message || 'Something went wrong while running your job. Check the activity log for details.';
+      if (redirectUrl) document.getElementById('run-back').href = redirectUrl;
+      document.getElementById('run-actions').hidden = false;
+    }
+  }
+
   function updateProgress() {
+    if (finished) return;
     // Make an Ajax request to the check_progress view
     fetch('{% url "check_progress" %}?job_id=' + job_id)
       .then(response => response.json())
       .then(data => {
-        //console.log("job_id:", job_id)
-        const progressDiv = document.getElementById('progress-div');
-        const formattedOutput = data.progress.replace(/\n/g, '<br>');
-        progressDiv.innerHTML = 'Progress: ' + formattedOutput;
+        var progress = String(data.progress || '');
 
-        if (data.progress === "Script completed successfully" || data.progress.startsWith("Script failed")){
-          window.location.href = data.redirect_url;
+        if (progress !== lastProgress) {
+          lastProgress = progress;
+          log(progress);
         }
+        progressDiv.textContent = progress.split('\n').filter(Boolean).pop() || 'Working…';
+
+        if (progress === 'Script completed successfully') {
+          finish(true, data.redirect_url);
+          return;
+        }
+        if (data.redirect_url || progress.startsWith('Script failed')) {
+          // Any other response carrying a redirect means the job ended without results.
+          finish(false, data.redirect_url, progress);
+          return;
+        }
+
+        setStep(progress === 'created' || progress === 'queued' ? 'queued' : 'running');
+      })
+      .catch(error => {
+        log('Could not reach the server, retrying…');
+        console.error('Error:', error);
       });
   }
 
+  setStep('queued');
   updateProgress();
 
-  // Periodically update progress every 2 seconds (adjust as needed)
-  const progressInterval = setInterval(updateProgress, 5000);
-  //setInterval(updateProgress, 2000);
+  // Periodically update progress every 5 seconds
+  var progressInterval = setInterval(updateProgress, 5000);
 </script>
-</html>
+{% endblock %}

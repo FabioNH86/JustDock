@@ -1,11 +1,13 @@
 function submitProteinForm() {
-    document.getElementById('proteinProcessedMessage').style.display = 'block';
+    var processing = document.getElementById('processingProtein');
+    var message = document.getElementById('proteinProcessedMessage');
+    message.innerHTML = '';
+    message.classList.remove('is-error');
+    processing.style.display = 'flex';
 
     var pForm = document.getElementById('uploadProteinForm');
     var pFormData = new FormData(pForm);
     pFormData.append('type', 'process_protein');
-
-    //console.log(pFormData);
 
     fetch(pForm.action, {
         method: 'POST',
@@ -16,14 +18,17 @@ function submitProteinForm() {
     })
     .then(response => response.text())
     .then(data => {
-        document.getElementById('processingProtein').style.display = 'none';
+        processing.style.display = 'none';
         var parsedData = JSON.parse(data);
-        document.getElementById('proteinProcessedMessage').innerHTML = parsedData.status;
+        message.innerHTML = parsedData.status;
         var receptor = parsedData.protein_file;
         //if the parsed data says success, do the following
         window.loadReceptor(receptor);
     })
     .catch(error => {
+        processing.style.display = 'none';
+        message.classList.add('is-error');
+        message.innerHTML = 'Something went wrong while preparing the protein. Please check the file and try again.';
         console.error('Error:', error)
     });
 }
