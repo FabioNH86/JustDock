@@ -1,6 +1,6 @@
 import os
 from django.shortcuts import render, redirect
-from jobs.models import Job, Docking, Protein, Ligand
+from jobs.models import Job, Docking, Protein, Ligand, Profile
 from django.http import FileResponse, HttpResponse, HttpResponseForbidden
 from django.http import HttpResponse
 from django.conf import settings
@@ -13,6 +13,7 @@ import json
 def results(request, current_job=None, current_docking=None, current_pocket=None):
     #everything is done on basis of the current user
     user = request.user
+    profile, _ = Profile.objects.get_or_create(user=user)
     jobs = Job.objects.filter(user=user)
 
     #current_job starts with a non-null value if the user directly visits the job id via url

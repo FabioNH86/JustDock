@@ -177,7 +177,9 @@ def rundocking(request):
         job_obj.save()
         
         # IMPORTANTE: Pasa el ID, no el objeto completo
-        run_docking_script.delay(user_id, job_id, settings_dict)
+        rq_job = run_docking_script.delay(user_id, job_id, settings_dict)
+        job_obj.rq_job_id = rq_job.id
+        job_obj.save(update_fields=['rq_job_id'])
         
         # Opcional: Limpiar sesión para que el F5 no tenga metadatos
         # request.session.pop('job_metadata', None) 
@@ -194,40 +196,52 @@ def check_progress(request):
     try:
         # 1. Intentamos obtener el estado desde nuestra base de datos (Fuente de verdad)
         django_job = Job.objects.get(pk=job_id)
-        
-        # Si en la DB ya dice que terminó
-        if django_job.status == 'finished' or django_job.status == 'completed':
-            return JsonResponse({
-                'progress': 'Script completed successfully',
-                'redirect_url': reverse('results')
-            })
-        
-        # Si en la DB dice que falló
-        if django_job.status == 'failed':
-            return JsonResponse({
-                'progress': 'Error en la ejecución',
-                'redirect_url': reverse('home')
-            })
+    except Job.DoesNotExist:
+        return JsonResponse({'progress': 'Job no encontrado en la base de datos', 'redirect_url': reverse('home')})
 
+    # Pull RQ progress regardless of DB status
+    queue = get_queue('default')
+    progress_text = ''
+    exc_info = ''
+
+    if django_job.rq_job_id:
         # 2. Si sigue 'started', intentamos buscar detalles adicionales en Redis (opcional)
         try:
-            queue = get_queue('default')
-            rq_job = rqJob.fetch(str(job_id), connection=queue.connection)
-            # Si el script escribe en meta['progress'], lo usamos, si no, usamos el status de la DB
-            progress = rq_job.meta.get('progress', django_job.status)
-        except:
-            progress = django_job.status # Si Redis no responde, usamos lo que diga la DB
+            rq_job = rqJob.fetch(django_job.rq_job_id, connection=queue.connection)
+            # Si el script escribe en meta['progress'], lo usamos
+            progress_text = rq_job.meta.get('progress', '')
+            if rq_job.is_failed:
+                    exc_info = rq_job.exc_info or ''
+        except NoSuchJobError:
+            progress_text = '(RQ job no longer in Redis)'
+        except Exception as e:
+            print(f"check_progress: redis fetch failed: {e}", flush=True)
+    else:
+        progress_text = '(no rq_job_id on this Job - enqueue path did not capture it)'
 
-        return JsonResponse({'progress': progress})
-
-    except Job.DoesNotExist:
+        
+    # Si en la DB ya dice que terminó
+    if django_job.status in ('finished', 'completed'):
         return JsonResponse({
-            'progress': 'Job no encontrado en la base de datos', 
-            'redirect_url': reverse('home')
+            'progress': progress_text or 'Script completed successfully',
+            'redirect_url': reverse('results'),
+            'done': True,
         })
-    except Exception as e:
-        print(f"Error en check_progress: {e}")
-        return JsonResponse({'progress': 'Procesando...'})
+    
+    # Si en la DB dice que falló
+    if django_job.status == 'failed':
+        # Show the log
+        return JsonResponse({
+            'progress': (progress_text + '\n' + exc_info).strip() or 'Job failed (no output captured)',
+            #'redirect_url': reverse('home'),
+            'redirect_url': None, #don't redirect back home, so the user can see what failed
+            'done': True,
+        })
+
+    return JsonResponse({
+        'progress': progress_text or django_job.status,
+        'done': False, #flag: only redirect when 'done' is True
+    })
 
 
 def dummy(request):

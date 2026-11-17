@@ -14,7 +14,7 @@ logging.basicConfig(filename='script_output.log', level=logging.DEBUG)
 
 # 1. FUNCIÓN GLOBAL HELPER: run_script
 # Se define AFUERA para que sea accesible sin importar los bloques try/except
-def run_script(cmd, django_job=None):
+def run_script(cmd, rq_job=None):
     home_dir = os.path.expanduser("~")
     print(f"DEBUG: Ejecutando comando: {' '.join(cmd)}", flush=True)
 
@@ -23,7 +23,7 @@ def run_script(cmd, django_job=None):
     custom_env["HOMEDIR"] = home_dir
     # Aprovechamos para asegurar SCRIPTDIR también
     if not "SCRIPTDIR" in custom_env:
-        custom_env["SCRIPTDIR"] = getattr(django_settings, 'SCRIPTDIR', "/home/fabio-noriega/.local/src/jimag-scripts")
+        custom_env["SCRIPTDIR"] = getattr(django_settings, 'SCRIPTDIR', "/home/aldo/.local/src/JustDock/jimag-scripts")
     try:
         process = subprocess.Popen(
             cmd,
@@ -35,13 +35,16 @@ def run_script(cmd, django_job=None):
         )
 
         for line in iter(process.stdout.readline, ''):
-            clean_line = line.strip()
-            if clean_line:
-                print(f"BASH_LOG: {clean_line}", flush=True)
-                if django_job:
-                    #django_job.meta['progress'] = clean_line
-                    django_job.progress = clean_line[:200]
-                    django_job.save()
+            clean_line = line.strip("\n")
+            if not clean_line:
+                continue
+            print(f"BASH_LOG: {clean_line}", flush=True)
+            if rq_job is not None: #instead of the django job
+                # accumulate, cap at ~10k chars so meta doesn't explode
+                existing = rq_job.meta.get('progress', '')
+                combined = (existing + clean_line + '\n')[-10000:]
+                rq_job.meta['progress'] = combined
+                rq_job.save_meta()
 
         process.stdout.close()
         return_code = process.wait()
@@ -68,15 +71,6 @@ def update_setting(cmd, flag, value):
 def run_docking_script(user_id, job_id, docking_settings):
     print(f"DEBUG: Starting task for user {user_id}", flush=True)
 
-
-    try:
-        django_job = Job.objects.get(id=job_id)
-        django_job.status = 'started'
-        django_job.save()
-    except Job.DoesNotExist:
-        print(f"ERROR: Job {job_id} not found in database.", flush=True)
-        return "Job no encontrado en la base de datos"
-    
     logger = logging.getLogger(__name__)
 
     # --- INICIALIZACIÓN Y VALIDACIÓN DEL JOB ---
@@ -87,6 +81,15 @@ def run_docking_script(user_id, job_id, docking_settings):
         print(f"CRASH en get_current_job: {e}", flush=True)
         return "Error al obtener job"
 
+    try:
+        django_job = Job.objects.get(id=job_id)
+        django_job.rq_job_id = rq_worker_job.id
+        django_job.status = 'started'
+        django_job.save(update_fields=['status', 'rq_job_id'])
+    except Job.DoesNotExist:
+        print(f"ERROR: Job {job_id} not found in database.", flush=True)
+        return "Job no encontrado en la base de datos"
+    
     print("\n\n!!! JOB HAS STARTED IN THE WORKER !!!\n\n", flush=True)
     
     prot_file = docking_settings.get('clean_protein_filename', 'PATH_NOT_DEFINED')
@@ -164,7 +167,7 @@ def run_docking_script(user_id, job_id, docking_settings):
     try:
         print(f"DEBUG: Launching PREDOCK run_script...", flush=True)
         # Assuming run_script is a helper function you have defined elsewhere
-        if not run_script(script_command, django_job):
+        if not run_script(script_command, rq_worker_job): #again, instead of using the django_job
             print("DEBUG: Preprocessing run_script returned False", flush=True)
             django_job.status = 'failed'
             django_job.save()
@@ -236,7 +239,7 @@ def run_docking_script(user_id, job_id, docking_settings):
             
             print(f"DEBUG: Launching run_script for Run {run}: {' '.join(script_command)}", flush=True)
             
-            if not run_script(script_command, django_job):
+            if not run_script(script_command, rq_worker_job):
                 print(f"DEBUG: Run {run} FAILED", flush=True)
                 #job.meta['progress'] = f"Run {run} failed"
                 django_job.status = 'failed'
@@ -255,9 +258,12 @@ def run_docking_script(user_id, job_id, docking_settings):
         error_info = f"Script failed in final block: {str(e)}"
         print(f"DEBUG: {error_info}", flush=True)
         logger.error(error_info)
-        job.meta['progress'] = error_info
+        if rq_worker_job is not None:
+            rq_worker_job.meta['progress'] = rq_worker_job.meta.get('progress', '') + '\n' + error_info
+            rq_worker_job.save_meta()
+        django_job.status = 'failed'
+        django_job.save()
         job.set_status('failed')
-        job.save_meta()
         return "Script Failed"
 
 

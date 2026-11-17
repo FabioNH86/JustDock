@@ -21,6 +21,13 @@ sys.path.append('/home/aldo/.local/pipx/venvs/django-rq/lib/python3.11/site-pack
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+SCRIPTDIR = os.environ.get(
+    "SCRIPTDIR",
+    os.path.expanduser("~/.local/src/jimag-scripts"),
+)
+PROJECTROOT = os.environ.get("PROJECTROOT", str(BASE_DIR))
+HOMEDIR = os.environ.get("HOMEDIR", os.path.expanduser("~"))
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 

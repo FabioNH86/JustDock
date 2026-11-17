@@ -1,4 +1,7 @@
 #!/bin/bash
+# load a java version compatible with p2rank
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
 
 # --- LÓGICA PARA ENLACES SIMBÓLICOS ---
 # Esto detecta la ruta real del archivo, incluso si lo lanzas desde un link como ./inicio
@@ -22,7 +25,7 @@ fuser -k 8000/tcp 6380/tcp 2>/dev/null
 
 # --- COMANDOS ---
 CMD_DJANGO="cd '$PROJECT_ROOT' && source '$VENV_ACTIVATE' && python manage.py runserver"
-CMD_REDIS="redis-server --port 6380"
+#CMD_REDIS="redis-server --port 6379"
 CMD_WORKER="cd '$PROJECT_ROOT' && source '$VENV_ACTIVATE' && export HOMEDIR='$HOMEDIR' && export SCRIPTDIR='$SCRIPTDIR' && python manage.py rqworker"
 
 # --- EJECUCIÓN (Worker arriba, Django y Redis abajo) ---
@@ -39,15 +42,16 @@ tmux split-window -v -t $SESSION
 tmux send-keys -t $SESSION "$CMD_DJANGO" C-m
 
 # 4. Dividimos el panel inferior a la mitad para Redis (inferior derecho)
-tmux split-window -h -t $SESSION
-tmux send-keys -t $SESSION "$CMD_REDIS" C-m
+#tmux split-window -h -t $SESSION
+#tmux send-keys -t $SESSION "$CMD_REDIS" C-m
 
 # Seleccionamos el panel 0 (Worker) para que el cursor empiece ahí
 tmux select-pane -t 0
 
 tmux resize-pane -D 5
 
-gnome-terminal --title="Jimag System" -- tmux attach-session -t $SESSION &
+#gnome-terminal --title="Jimag System" -- tmux attach-session -t $SESSION &
+mate-terminal --title="Jimag System" -e "tmux attach-session -t $SESSION" &
 
 # --- NAVEGADOR ---
 echo "Iniciando servicios desde la ruta real: $PROJECT_ROOT"

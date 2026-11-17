@@ -11,25 +11,33 @@
 <script>
   var job_id = "{{ job_id }}";
   function updateProgress() {
-    // Make an Ajax request to the check_progress view
     fetch('{% url "check_progress" %}?job_id=' + job_id)
-      .then(response => response.json())
+      .then(r => r.json())
       .then(data => {
-        //console.log("job_id:", job_id)
-        const progressDiv = document.getElementById('progress-div');
-        const formattedOutput = data.progress.replace(/\n/g, '<br>');
-        progressDiv.innerHTML = 'Progress: ' + formattedOutput;
-
-        if (data.progress === "Script completed successfully" || data.progress.startsWith("Script failed")){
-          window.location.href = data.redirect_url;
+        const div = document.getElementById('progress-div');
+        // replace newlines with <br>, keep everything else as text
+        const escaped = data.progress
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>');
+        div.innerHTML = '<pre>' + escaped + '</pre>';
+        //if (data.done && data.redirect_url) {
+        //  clearInterval(progressInterval);
+        //  window.location.href = data.redirect_url;
+        //}
+        if (data.done) {
+            clearInterval(progressInterval);
+            if (data.failed) {
+                // stay on page; append a "back" button
+                const div = document.getElementById('progress-div');
+                div.innerHTML += '<br><br><a href="/jobs/">← Back to jobs</a>';
+            } else if (data.redirect_url) {
+                window.location.href = data.redirect_url;
+            }
         }
-      });
+      })
+      .catch(e => console.error('poll failed', e));
   }
-
   updateProgress();
-
   // Periodically update progress every 2 seconds (adjust as needed)
-  const progressInterval = setInterval(updateProgress, 5000);
-  //setInterval(updateProgress, 2000);
-</script>
-</html>
+  const progressInterval = setInterval(updateProgress, 2000);
+</script></html>

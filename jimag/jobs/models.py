@@ -21,6 +21,7 @@ class Job(models.Model):
         ('failed', 'Failed'),
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
+    rq_job_id = models.CharField(max_length=64, blank=True, default='')
 
 class Protein(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -48,5 +49,5 @@ class Docking(models.Model):
     pockets = models.CharField(max_length=100)
 
 class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE,related_name="profile")
     latest_job = models.PositiveIntegerField(null=True)
