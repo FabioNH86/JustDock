@@ -54,6 +54,22 @@ tmux resize-pane -t "$SESSION:0.0" -D 5
 echo "Iniciando servicios desde la ruta real: $PROJECT_ROOT"
 echo "Scripts de acoplamiento: $SCRIPTDIR"
 
+# --- ACCESO PÚBLICO (Tailscale Funnel) ---
+# Publica localhost:8000 en https://<máquina>.<tailnet>.ts.net
+# Para desactivarlo: tailscale funnel --https=443 off
+if command -v tailscale >/dev/null; then
+  if timeout 20 tailscale funnel --bg 8000 >/dev/null 2>&1; then
+    TS_HOST="$(tailscale status --json 2>/dev/null | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null)"
+    if [ -n "$TS_HOST" ]; then
+      echo "URL pública para compartir: https://$TS_HOST"
+      tmux set-option -t "$SESSION" status-right-length 80 >/dev/null
+      tmux set-option -t "$SESSION" status-right " https://$TS_HOST " >/dev/null
+    fi
+  else
+    echo "AVISO: no se pudo activar Tailscale Funnel. Prueba: tailscale funnel --bg 8000" >&2
+  fi
+fi
+
 # --- NAVEGADOR (en segundo plano, solo si hay entorno gráfico) ---
 if [ -n "$DISPLAY$WAYLAND_DISPLAY" ] && command -v xdg-open >/dev/null; then
   ( sleep 3; xdg-open "$URL" >/dev/null 2>&1 ) &

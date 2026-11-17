@@ -173,14 +173,6 @@ cd ~/.local/src/p2rank_2.4
 
 It should end with `finished successfully` and create `/tmp/prank_test/1fbl.pdb_predictions.csv`.
 
-### Patch `prepare_ligand4.py`
-
-```bash
-cd ~/.local/src/adfr/ADFRsuite-1.0/CCSBpckgs/AutoDockTools/Utilities24
-sed -i 's/#ligand_filename = a/ligand_filename = a/' prepare_ligand4.py
-sed -i 's/ligand_filename = os.path.basename(a)/#ligand_filename = os.path.basename(a)/' prepare_ligand4.py
-```
-
 ## 7. Docking scripts
 
 Make the scripts executable and compile `max2pockets` for your machine:
