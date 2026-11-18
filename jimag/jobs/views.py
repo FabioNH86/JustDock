@@ -201,7 +201,13 @@ def check_progress(request):
         # 1. Intentamos obtener el estado desde nuestra base de datos (Fuente de verdad)
         django_job = Job.objects.get(pk=job_id)
     except Job.DoesNotExist:
-        return JsonResponse({'progress': 'Job no encontrado en la base de datos', 'redirect_url': reverse('home')})
+        return JsonResponse({
+            'progress': 'Job no encontrado en la base de datos',
+            'log': '',
+            'redirect_url': reverse('home'),
+            'done': True,
+            'failed': True,
+        })
 
     # Pull RQ progress regardless of DB status
     queue = get_queue('default')
@@ -224,26 +230,31 @@ def check_progress(request):
         progress_text = '(no rq_job_id on this Job - enqueue path did not capture it)'
 
         
-    # Si en la DB ya dice que terminó
+        # Si en la DB ya dice que terminó
     if django_job.status in ('finished', 'completed'):
         return JsonResponse({
-            'progress': progress_text or 'Script completed successfully',
+            'progress': 'Script completed successfully',
+            'log': progress_text,
             'redirect_url': reverse('results'),
             'done': True,
+            'failed': False,
         })
-    
+
     # Si en la DB dice que falló
     if django_job.status == 'failed':
-    return JsonResponse({
-        'progress': 'Script failed\n' + ((progress_text + '\n' + exc_info).strip() or 'no output captured'),
-        'redirect_url': reverse('home'),
-        'done': True,
-        'failed': True,
-    })
+        return JsonResponse({
+            'progress': 'Script failed',
+            'log': (progress_text + '\n' + exc_info).strip() or 'no output captured',
+            'redirect_url': reverse('home'),
+            'done': True,
+            'failed': True,
+        })
 
     return JsonResponse({
         'progress': progress_text or django_job.status,
-        'done': False, #flag: only redirect when 'done' is True
+        'log': progress_text,
+        'done': False,
+        'failed': False,
     })
 
 

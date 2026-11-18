@@ -6,7 +6,7 @@ import os
 from rq import get_current_job
 from django_rq import job
 from django.conf import settings as django_settings
-from .models import Docking, Protein, Ligand, User, Job
+from .models import Docking, Protein, Ligand, User, Job, Profile
 from rq import get_current_job as get_rq_job
 
 logging.basicConfig(filename='script_output.log', level=logging.DEBUG)
@@ -265,13 +265,12 @@ def run_docking_script(user_id, job_id, docking_settings):
         print(f"DEBUG: {error_info}", flush=True)
         logger.error(error_info)
         if rq_worker_job is not None:
-            rq_worker_job.meta['progress'] = rq_worker_job.meta.get('progress', '') + '\n' + error_info
+            rq_worker_job.meta['progress'] = (rq_worker_job.meta.get('progress', '') + '\n' + error_info)
             rq_worker_job.save_meta()
-        django_job.status = 'failed'
-        django_job.save()
-        job.set_status('failed')
+        if django_job is not None:
+            django_job.status = 'failed'
+            django_job.save(update_fields=['status'])
         return "Script Failed"
-
 
 
 
