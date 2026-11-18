@@ -234,13 +234,12 @@ def check_progress(request):
     
     # Si en la DB dice que falló
     if django_job.status == 'failed':
-        # Show the log
-        return JsonResponse({
-            'progress': (progress_text + '\n' + exc_info).strip() or 'Job failed (no output captured)',
-            #'redirect_url': reverse('home'),
-            'redirect_url': None, #don't redirect back home, so the user can see what failed
-            'done': True,
-        })
+    return JsonResponse({
+        'progress': 'Script failed\n' + ((progress_text + '\n' + exc_info).strip() or 'no output captured'),
+        'redirect_url': reverse('home'),
+        'done': True,
+        'failed': True,
+    })
 
     return JsonResponse({
         'progress': progress_text or django_job.status,
