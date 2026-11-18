@@ -1,4 +1,7 @@
 #!/bin/bash
+# load a java version compatible with p2rank
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
 
 # --- LÓGICA PARA ENLACES SIMBÓLICOS ---
 # Detecta la ruta real del archivo, incluso si se lanza desde un enlace como ./inicio
@@ -26,12 +29,13 @@ fi
 
 # --- LIMPIEZA ---
 tmux kill-session -t "$SESSION" 2>/dev/null
-fuser -k 8000/tcp 6380/tcp 2>/dev/null
+#fuser -k 8000/tcp 6380/tcp 2>/dev/null
+fuser -k 8000/tcp 2>/dev/null #using systemd's redis at 6379 instead
 
 # --- COMANDOS ---
 CMD_ENV="export HOMEDIR='$HOMEDIR' PROJECTROOT='$PROJECTROOT' SCRIPTDIR='$SCRIPTDIR'"
 CMD_DJANGO="cd '$PROJECT_ROOT' && source '$VENV_ACTIVATE' && $CMD_ENV && python manage.py runserver"
-CMD_REDIS="redis-server --port 6380"
+#CMD_REDIS="redis-server --port 6380" #we will be using systemd's redis for now
 CMD_WORKER="cd '$PROJECT_ROOT' && source '$VENV_ACTIVATE' && $CMD_ENV && python manage.py rqworker"
 
 # --- EJECUCIÓN (Worker arriba, Django y Redis abajo) ---
@@ -45,8 +49,9 @@ tmux split-window -v -t "$SESSION"
 tmux send-keys -t "$SESSION" "$CMD_DJANGO" C-m
 
 # 3. Redis a la derecha
-tmux split-window -h -t "$SESSION"
-tmux send-keys -t "$SESSION" "$CMD_REDIS" C-m
+# (dropping in favor of systemd's redis)
+#tmux split-window -h -t "$SESSION"
+#tmux send-keys -t "$SESSION" "$CMD_REDIS" C-m
 
 tmux select-pane -t "$SESSION:0.0"
 tmux resize-pane -t "$SESSION:0.0" -D 5

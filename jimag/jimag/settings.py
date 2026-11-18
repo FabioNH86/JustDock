@@ -14,15 +14,19 @@ from pathlib import Path
 import os
 import sys
 
-# print(sys.path)
-# sys.path.append('/home/aldo/.local/pipx/venvs/django-rq/lib/python3.11/site-packages/')
+print(sys.path)
+sys.path.append('/home/aldo/.local/pipx/venvs/django-rq/lib/python3.11/site-packages/')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-PROJECTROOT = str(BASE_DIR)
-#SCRIPTDIR = str(BASE_DIR.parent / "jimag-scripts")
-SCRIPTDIR = os.getenv('SCRIPTDIR', str(BASE_DIR.parent / 'jimag-scripts'))
+
+SCRIPTDIR = os.environ.get(
+    "SCRIPTDIR",
+    os.path.expanduser("~/.local/src/jimag-scripts"),
+)
+PROJECTROOT = os.environ.get("PROJECTROOT", str(BASE_DIR))
+HOMEDIR = os.environ.get("HOMEDIR", os.path.expanduser("~"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -150,12 +154,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 RQ_QUEUES = {
     'default': {
         'HOST': 'localhost',
-        'PORT': 6380,
+        'PORT': '6379',
         'DB': 0,
-        'DEFAULT_TIMEOUT': 3600,
-        'CONNECTION_POOL_KWARGS': {
-            'socket_keepalive': True,
-            'retry_on_timeout': True,
-        }
+        'DEFAULT_TIMEOUT': 3600, #TODO: was previously 1200. why?
     },
 }

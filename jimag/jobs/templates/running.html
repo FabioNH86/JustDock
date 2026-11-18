@@ -112,19 +112,19 @@
       .then(response => response.json())
       .then(data => {
         var progress = String(data.progress || '');
+        var logText = String(data.log || progress);
 
-        if (progress !== lastProgress) {
-          lastProgress = progress;
-          log(progress);
+        if (logText !== lastProgress) {
+          lastProgress = logText;
+          log(logText);
         }
-        progressDiv.textContent = progress.split('\n').filter(Boolean).pop() || 'Working…';
+        progressDiv.textContent = (data.done ? progress : progress.split('\n').filter(Boolean).pop()) || 'Working…';
 
         if (progress === 'Script completed successfully') {
           finish(true, data.redirect_url);
           return;
         }
         if (data.redirect_url || progress.startsWith('Script failed')) {
-          // Any other response carrying a redirect means the job ended without results.
           finish(false, data.redirect_url, progress);
           return;
         }
