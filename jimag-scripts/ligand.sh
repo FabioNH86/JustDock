@@ -22,7 +22,9 @@ obabel "$ID"/ligand.* -O "$WD"/ligand.mol2 --gen3d
 echo -e ">> preparing ligand..."
 # Llamamos al script asegurando que use su entorno
 if [ -f "$ADFRBIN/prepare_ligand" ]; then
-    "$ADFRBIN/prepare_ligand" -l "$WD/ligand.mol2" -o "$WD/ligand.pdbqt"
+    # prepare_ligand4.py strips the directory from -l (os.path.basename),
+    # so it must run from the folder that contains the ligand.
+    (cd "$WD" && "$ADFRBIN/prepare_ligand" -l ligand.mol2 -o ligand.pdbqt)
 else
     echo "ERROR: ADFRsuite no encontrado en $ADFRBIN"
     exit 1

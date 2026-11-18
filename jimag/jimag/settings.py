@@ -37,7 +37,9 @@ SECRET_KEY = 'django-insecure-2!cc0*&)5w(-z!ar&vk@=@0e!g9^(3ksgqgnxu^us(58f1(u=^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# localhost para uso local; .ts.net para el acceso público vía Tailscale Funnel
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ts.net']
+CSRF_TRUSTED_ORIGINS = ['https://*.ts.net']
 
 
 # Application definition

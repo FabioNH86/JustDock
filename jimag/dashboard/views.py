@@ -11,65 +11,75 @@ import json
 
 # Create your views here.
 def results(request, current_job=None, current_docking=None, current_pocket=None):
-    #everything is done on basis of the current user
     user = request.user
     profile, _ = Profile.objects.get_or_create(user=user)
-    jobs = Job.objects.filter(user=user)
+    jobs = Job.objects.filter(user=user).order_by('-id')
 
-    #current_job starts with a non-null value if the user directly visits the job id via url
+    # Empty-state: user has no jobs at all
+    if not jobs.exists():
+        return render(request, 'dashboard.html', {'error': 'No tienes trabajos creados.'})
+
+    # Determine current job
     if not current_job:
-        latest_job = user.profile.latest_job
-        if not latest_job: #if latest_job is null
-            # todo: consider the case where the user has no jobs
-            # TODO: This is redundant with the lines in delete_job()
-            job_ids = jobs.values_list('id', flat=True)
-            first_job = min(job_ids)
-            current_job = first_job
+        latest_job_id = profile.latest_job
+        if latest_job_id and jobs.filter(pk=latest_job_id).exists():
+            current_job = latest_job_id
         else:
-            current_job = latest_job
-    if Job.objects.get(pk=current_job).user != request.user:
+            current_job = jobs.first().id
+
+    # Security: job must belong to this user
+    job_instance = Job.objects.filter(pk=current_job, user=user).first()
+    if job_instance is None:
         return HttpResponseForbidden("You don't have access to this job.")
 
+    # Dockings for this job
     dockings = Docking.objects.filter(job=current_job)
-    if current_docking == None or current_docking == 0:
-        #find the first docking IN THE CURRENT JOB 
-        #TODO: cache this value so that it doesn't get calculated every time we change pockets in the same docking
-        docking_ids = dockings.values_list('id', flat=True)
-        first_docking = min(docking_ids)
-        current_docking = first_docking
-        #current_docking = Docking.objects.get(job=current_job).id
-    docking = current_docking
-    print("DOCKING: ", current_docking)
+    if not dockings.exists():
+        return render(request, 'dashboard.html', {
+            'job_info': job_info(current_job) if job_instance.status == 'finished' else None,
+            'current_job': current_job,
+            'jobs': list(jobs),
+            'no_dockings': True,
+            'status': job_instance.status,
+        })
+
+    if current_docking is None or current_docking == 0:
+        current_docking = dockings.first().id
+
+    docking_instance = Docking.objects.get(pk=current_docking)
 
     if not current_pocket:
-        current_pocket = [int(pocket) for pocket in Docking.objects.get(pk=docking).pockets.split(',')][0]
+        try:
+            current_pocket = [int(p) for p in docking_instance.pockets.split(',')][0]
+        except (ValueError, IndexError, AttributeError):
+            current_pocket = 1
 
     wd = f"user_{user.id}/job_{current_job}/"
-    cpd = f"{wd}docking_{docking}/pocket_{current_pocket}/" # current pocket directory
+    cpd = f"{wd}docking_{current_docking}/pocket_{current_pocket}/"
 
     current_job_files = {
         'conformers': f"/media/{cpd}modes.pdbqt",
         'receptor': f"/media/{wd}receptor.pdbqt",
     }
-    vina_file = f"{settings.MEDIA_ROOT}/{cpd}scores.txt"
-    with open(vina_file, 'r') as file:
-        vina_results = file.read()
 
-    print("DOCKINGS: ", dockings)
+    vina_file = f"{settings.MEDIA_ROOT}/{cpd}scores.txt"
+    try:
+        with open(vina_file, 'r') as file:
+            vina_results = file.read()
+    except FileNotFoundError:
+        vina_results = ''
+
     return render(request, 'dashboard.html', {
         'job_info': job_info(current_job),
         'current_job': current_job,
         'current_job_files': current_job_files,
-        'current_docking' : current_docking,
+        'current_docking': current_docking,
         'current_pocket': current_pocket,
         'vina_results': vina_results,
-        #'jobs': [job for job in Job.objects.filter(user=user)],
-        'jobs': list(jobs.order_by('-id')),
-        'dockings': list(Docking.objects.filter(job=current_job)),
-        'pockets': [int(pocket) for pocket in dockings.get(pk=docking).pockets.split(',')]  # current job pockets
+        'jobs': list(jobs),
+        'dockings': list(dockings),
+        'pockets': [int(p) for p in docking_instance.pockets.split(',')],
     })
-
-
 def download_output(request, current_job):
     user = request.user
     td = f"{settings.MEDIA_ROOT}/user_{user.id}/tmp/"
@@ -93,34 +103,35 @@ def job_info(job_id):
     info['receptor'] = Protein.objects.get(job=job_id).protein_name
     info['ligand'] = Ligand.objects.get(job=job_id).ligand_name
     #this needs refactoring becuase jobs can now have multiple dockings
-    info['pockets'] = Docking.objects.filter(job=job_id).first().pockets
+    first_docking = Docking.objects.filter(job=job_id).first()
+    info['pockets'] = first_docking.pockets if first_docking else '' 
     return info
 
 
 def delete_job(request, job_id):
     user = request.user
-    job_instance = Job.objects.get(pk=job_id)
-    job_dir = f"{settings.MEDIA_ROOT}/user_{user.id}/job_{job_id}"
-    # TODO: remove redundant code
-    if request.method == 'POST':
-        if job_id == user.profile.latest_job:
-            try:
-                shutil.rmtree(job_dir)
-            except OSError as e:
-                print(f"Error deleting directory: {e}")
+    if request.method != 'POST':
+        return redirect('results')
 
-            job_instance.delete()
-            user.profile.latest_job = None
-            user.profile.save()
-            # user.profile.latest_job.delete()
-            user_job_ids = Job.objects.filter(user=user).values_list('id', flat=True)
-            first_job = min(user_job_ids)
-            return redirect('results', current_job=first_job)
-        else:
-            try:
-                shutil.rmtree(job_dir)
-            except OSError as e:
-                print(f"Error deleting directory: {e}")
+    # Solo se pueden borrar jobs propios; si no existe o es de otro usuario, se ignora
+    job_instance = Job.objects.filter(pk=job_id, user=user).first()
+    if job_instance is None:
+        return HttpResponseForbidden("No tienes acceso a este trabajo.")
 
-            job_instance.delete()
-            return redirect('results')
+    job_dir = os.path.join(settings.MEDIA_ROOT, f"user_{user.id}", f"job_{job_id}")
+    try:
+        shutil.rmtree(job_dir)
+    except OSError as e:
+        print(f"Error deleting directory: {e}")
+
+    job_instance.delete()
+
+    profile, _ = Profile.objects.get_or_create(user=user)
+    if profile.latest_job == job_id:
+        # Apuntamos al job más reciente que quede (o None si ya no hay ninguno)
+        remaining = Job.objects.filter(user=user).order_by('-id').first()
+        profile.latest_job = remaining.id if remaining else None
+        profile.save()
+
+    # results() elige el job a mostrar y maneja el caso sin jobs
+    return redirect('results')

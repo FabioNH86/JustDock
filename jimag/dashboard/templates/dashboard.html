@@ -1,124 +1,188 @@
-<!DOCTYPE html>
 {% extends 'nav.html' %}
 {% load static %}
 
-{% block content %}
-<head>
-    <link rel="stylesheet" href="{% static 'styles/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'styles/normalize.css' %}">
-    <link rel="stylesheet" href="{% static 'styles/style.css' %}">
+{% block title %}Dashboard{% endblock %}
 
-    <title>Dashboard</title>
-   
-</head>
-<body>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <h1>Dashboard</h1> 
-    <br>
-    <aside class="sidebar" style="height: 800px; overflow-y: auto;">
-        <ul>
-            {% for job in jobs %}
-                <li>
-                    <a href="{% url 'results' job.id 0 1 %}">Job {{ job.id }}</a> 
-                    <form action="{% url 'delete_job' job.id %}" method="POST">
-                        {% csrf_token %}
-                        <button>
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </form>
-                </li>
-                {% if job.id == current_job %}
-
-
-                    {% for docking in dockings %}
-                        <li>
-                            <a href="{% url 'results' job.id docking.id 1 %}">───Docking {{ docking.id }}</a>
-                        </li>
-                        {% if docking.id == current_docking %}
-                            {% for pocket in pockets %}
-                                {% if pocket == current_pocket %}
-                                    <li>
-                                        <a href="{% url 'results' job.id docking.id pocket %}" class="active">──────Pocket {{ pocket }}</a> 
-                                    </li>   
-                                {% else %}
-                                    <li>
-                                        <a href="{% url 'results' job.id docking.id pocket %}">──────Pocket {{ pocket }}</a> 
-                                    </li>   
-                                {% endif %}
-                            {% endfor %}
-                        {% endif %}
-                    {% endfor %}
-
-
-                {% endif %}
-            {% endfor %}
-        </ul>
-    </aside>
-    <div class="dashboard">
-        <ul class="tab-links">
-            <li class="active"><a href="#tab1">Affinities</a></li>
-            <li><a href="#tab2">Visualization</a></li>
-            <li><a href="#tab3">Pockets</a></li>
-            <li><a href="#tab4">Details</a></li>
-            <li><a href="#tab5">Download</a></li>
-        </ul>
-
-        <div class="tab-content" id="tab1">
-            <pre>{{ vina_results }}</pre>
-        </div>
-        <div class="tab-content" id="tab2">
-            <style>
-                #app {
-                    position: absolute;
-                    width: 67%;
-                    height: 600px;
-                }
-            </style>
-            <!-- 
-                molstar.js and .css are obtained from
-                - the folder build/viewer after cloning and building the molstar package 
-                - from the build/viewer folder in the Mol* NPM package
-            -->
-            <link rel="stylesheet" type="text/css" href="{% static 'molstar/molstar.css' %}" />
-            <script type="text/javascript" src="{% static 'molstar/molstar.js' %}"></script>
-            <div id="app"></div>
-            <script type="text/javascript" src="{% static 'dashb/viewer_bundle.js' %}"
-                defer
-                    data-conformers="{{ current_job_files.conformers }}";
-                    data-receptor="{{ current_job_files.receptor }}";>
-            </script>
-        </div>
-        <div class="tab-content" id="tab3">
-            <style>
-                #pockets-viewer {
-                    position: relative;
-                    width: 67%;
-                    height: 600px;
-                }
-            </style>
-            <link rel="stylesheet" type="text/css" href="{% static 'molstar/molstar.css' %}" />
-            <script type="text/javascript" src="{% static 'molstar/molstar.js' %}"></script>
-            <div id="pockets-viewer"></div>
-            <script type="text/javascript" src="{% static 'dashb/dock3_bundle.js' %}"
-                defer
-                    data-conformers="{{ current_job_files.conformers }}";
-                    data-receptor="{{ current_job_files.receptor }}";>
-            </script>
-
-        </div>
-        <div class="tab-content" id="tab4">
-            <h2>Details</h2>
-            <p>Job type: {{ job_info.type }}</p>
-            <p>Created at: {{ job_info.created_at }}</p>
-            <p>Receptor name: {{ job_info.receptor }}</p>
-            <p>Ligand name: {{ job_info.ligand }}</p>
-            <p>Pockets: {{ job_info.pockets }}</p>
-        </div>
-        <div class="tab-content" id="tab5">
-            <a href="{% url 'download_output' current_job %}" class="btn btn-primary">Download output</a>
-        </div>
-    </div>
-    <script src="{% static 'dashb/dashboard.js' %}"></script>
-</body>
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'styles/dashboard.css' %}?v=2">
+<!--
+    molstar.js and .css are obtained from
+    - the folder build/viewer after cloning and building the molstar package
+    - from the build/viewer folder in the Mol* NPM package
+-->
+<link rel="stylesheet" type="text/css" href="{% static 'molstar/molstar.css' %}" />
+<script type="text/javascript" src="{% static 'molstar/molstar.js' %}"></script>
 {% endblock %}
-</html>
+
+{% block content %}
+<div class="page container">
+    <div class="page-header">
+        <div>
+            <span class="eyebrow">Results</span>
+            <h1>Dashboard</h1>
+            <p>Browse your jobs, compare affinities and inspect every pose in 3D.</p>
+        </div>
+        <a href="/jobs" class="btn btn-primary"><i class="fas fa-plus"></i> New job</a>
+    </div>
+
+    {% if not jobs %}
+    <div class="card empty-state">
+        <div class="card-icon"><i class="fas fa-flask"></i></div>
+        <h2>No jobs yet</h2>
+        <p>{{ error|default:"You haven't run any docking jobs. Start one and your results will appear here." }}</p>
+        <a href="/jobs" class="btn btn-primary"><i class="fas fa-play"></i> Start your first job</a>
+    </div>
+    {% else %}
+    <div class="dash-layout">
+        <aside class="card sidebar">
+            <div class="sidebar-head">
+                <h3>Your jobs</h3>
+                <span class="badge">{{ jobs|length }}</span>
+            </div>
+            <ul class="job-tree">
+                {% for job in jobs %}
+                <li class="job-item {% if job.id == current_job %}open{% endif %}">
+                    <div class="job-row">
+                        <a href="{% url 'results' job.id 0 1 %}" class="job-link {% if job.id == current_job %}current{% endif %}">
+                            <i class="fas {% if job.id == current_job %}fa-folder-open{% else %}fa-folder{% endif %}"></i>
+                            <span>
+                                Job {{ job.id }}
+                                <small>{{ job.created_at|date:"M j, H:i" }}</small>
+                            </span>
+                            <span class="status-dot status-{{ job.status }}" title="{{ job.get_status_display }}"></span>
+                        </a>
+                        <form action="{% url 'delete_job' job.id %}" method="POST"
+                              onsubmit="return confirm('Delete job {{ job.id }}? This cannot be undone.');">
+                            {% csrf_token %}
+                            <button class="btn-danger-ghost" title="Delete job {{ job.id }}" aria-label="Delete job {{ job.id }}">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
+                    </div>
+
+                    {% if job.id == current_job %}
+                    <ul class="sub-tree">
+                        {% for docking in dockings %}
+                        <li>
+                            <a href="{% url 'results' job.id docking.id 1 %}" class="{% if docking.id == current_docking %}current{% endif %}">
+                                <i class="fas fa-atom"></i> Docking {{ docking.id }}
+                            </a>
+                            {% if docking.id == current_docking %}
+                            <ul class="sub-tree pockets">
+                                {% for pocket in pockets %}
+                                <li>
+                                    <a href="{% url 'results' job.id docking.id pocket %}" class="{% if pocket == current_pocket %}active{% endif %}">
+                                        <i class="fas fa-crosshairs"></i> Pocket {{ pocket }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </aside>
+
+        <section class="card dashboard">
+            {% if no_dockings %}
+            <div class="empty-state">
+                <div class="card-icon"><i class="fas fa-hourglass-half"></i></div>
+                <h2>No results for Job {{ current_job }} yet</h2>
+                <p>
+                    Current status: <span class="badge">{{ status|default:"unknown"|capfirst }}</span><br>
+                    {% if status == 'failed' %}This job failed. You can delete it and try again.{% else %}Results will appear here as soon as docking finishes.{% endif %}
+                </p>
+                <a href="{% url 'results' current_job 0 1 %}" class="btn btn-outline"><i class="fas fa-sync-alt"></i> Refresh</a>
+            </div>
+            {% else %}
+            <div class="dash-title">
+                <div>
+                    <h2>Job {{ current_job }} <span class="muted">/ Docking {{ current_docking }} / Pocket {{ current_pocket }}</span></h2>
+                    {% if job_info %}<p class="muted">{{ job_info.receptor }} · {{ job_info.ligand }}</p>{% endif %}
+                </div>
+            </div>
+
+            <ul class="tab-links" role="tablist">
+                <li class="active"><a href="#tab1"><i class="fas fa-chart-bar"></i> Affinities</a></li>
+                <li><a href="#tab2"><i class="fas fa-cube"></i> Visualization</a></li>
+                <li><a href="#tab3"><i class="fas fa-crosshairs"></i> Pockets</a></li>
+                <li><a href="#tab4"><i class="fas fa-info-circle"></i> Details</a></li>
+                <li><a href="#tab5"><i class="fas fa-download"></i> Download</a></li>
+            </ul>
+
+            <div class="tab-content" id="tab1">
+                {% if vina_results %}
+                <div id="affinity-summary"></div>
+                <details class="raw-output" id="raw-output" open>
+                    <summary>Raw Vina output</summary>
+                    <pre id="vina-raw">{{ vina_results }}</pre>
+                </details>
+                {% else %}
+                <div class="empty-state">
+                    <div class="card-icon"><i class="fas fa-file-alt"></i></div>
+                    <h3>No scores found</h3>
+                    <p>We couldn't find affinity scores for this pocket.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="tab-content" id="tab2">
+                <div id="app" class="viewer"></div>
+                <script type="text/javascript" src="{% static 'dashb/viewer_bundle.js' %}"
+                    defer
+                        data-conformers="{{ current_job_files.conformers }}";
+                        data-receptor="{{ current_job_files.receptor }}";>
+                </script>
+            </div>
+
+            <div class="tab-content" id="tab3">
+                <div id="pockets-viewer" class="viewer"></div>
+                <script type="text/javascript" src="{% static 'dashb/dock3_bundle.js' %}"
+                    defer
+                        data-conformers="{{ current_job_files.conformers }}";
+                        data-receptor="{{ current_job_files.receptor }}";>
+                </script>
+            </div>
+
+            <div class="tab-content" id="tab4">
+                {% if job_info %}
+                <dl class="details-grid">
+                    <div><dt>Job type</dt><dd>{{ job_info.type|default:"—" }}</dd></div>
+                    <div><dt>Created at</dt><dd>{{ job_info.created_at }}</dd></div>
+                    <div><dt>Receptor</dt><dd>{{ job_info.receptor }}</dd></div>
+                    <div><dt>Ligand</dt><dd>{{ job_info.ligand }}</dd></div>
+                    <div><dt>Pockets</dt><dd>{{ job_info.pockets }}</dd></div>
+                </dl>
+                {% else %}
+                <p class="muted">No details available.</p>
+                {% endif %}
+            </div>
+
+            <div class="tab-content" id="tab5">
+                {% if current_job %}
+                <div class="download-box">
+                    <div class="card-icon"><i class="fas fa-file-archive"></i></div>
+                    <div>
+                        <h3>Full output for Job {{ current_job }}</h3>
+                        <p class="muted">A ZIP archive with the prepared inputs, all poses and score files.</p>
+                    </div>
+                    <a href="{% url 'download_output' current_job %}" class="btn btn-primary"><i class="fas fa-download"></i> Download ZIP</a>
+                </div>
+                {% else %}
+                <p class="muted">{{ error|default:"No hay resultados para descargar." }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </section>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'dashb/dashboard.js' %}?v=2"></script>
+{% endblock %}

@@ -1,13 +1,13 @@
 function submitLigandForm() {
-    document.getElementById('ligandProcessedMessage').style.display = 'block';
+    var processing = document.getElementById('processingLigand');
+    var message = document.getElementById('ligandProcessedMessage');
+    message.innerHTML = '';
+    message.classList.remove('is-error');
+    processing.style.display = 'flex';
 
     var lForm = document.getElementById('uploadLigandForm');
     var lFormData = new FormData(lForm);
     lFormData.append('type', 'process_ligand');
-
-    //console.log(lFormData);
-    //getval = lFormData.get('ligand_file');
-    //console.log(getval);
 
     fetch(lForm.action, {
         method: 'POST',
@@ -18,12 +18,15 @@ function submitLigandForm() {
     })
     .then(response => response.text())
     .then(data => {
-        document.getElementById('processingLigand').style.display = 'none';
+        processing.style.display = 'none';
         var parsedData = JSON.parse(data);
-        document.getElementById('ligandProcessedMessage').innerHTML = parsedData.status;
+        message.innerHTML = parsedData.status;
         var ligand = parsedData.ligand_file;
     })
     .catch(error => {
+        processing.style.display = 'none';
+        message.classList.add('is-error');
+        message.innerHTML = 'Something went wrong while preparing the ligand. Please check the file and try again.';
         console.error('Error:', error)
     });
 }

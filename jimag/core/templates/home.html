@@ -1,37 +1,141 @@
-<!DOCTYPE html>
 {% extends 'nav.html' %}
 {% load static %}
 
+{% block title %}Home{% endblock %}
+
+{% block extra_head %}
+<style>
+    .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 72px 0 88px;
+        background:
+            radial-gradient(900px 420px at 85% -10%, rgba(56, 189, 248, .18), transparent 60%),
+            radial-gradient(700px 400px at 0% 110%, rgba(47, 118, 240, .14), transparent 60%),
+            linear-gradient(180deg, #fff, var(--bg));
+        border-bottom: 1px solid var(--border);
+    }
+    .hero-grid {
+        display: grid;
+        grid-template-columns: 1.1fr .9fr;
+        gap: 56px;
+        align-items: center;
+    }
+    .hero h1 {
+        font-size: clamp(2.4rem, 5vw, 3.8rem);
+        line-height: 1.05;
+        margin-bottom: 20px;
+    }
+    .hero h1 .grad {
+        background: linear-gradient(90deg, var(--blue-600), var(--sky));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .hero .lead {
+        font-size: 1.15rem;
+        color: var(--text-muted);
+        max-width: 520px;
+        margin-bottom: 32px;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .hero-visual {
+        position: relative;
+        border-radius: 24px;
+        padding: 14px;
+        background: linear-gradient(135deg, rgba(255,255,255,.9), rgba(227,238,255,.9));
+        border: 1px solid var(--blue-100);
+        box-shadow: var(--shadow-lg);
+    }
+    .hero-visual img { width: 100%; border-radius: 16px; }
+    .hero-visual .chip {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        font-size: .82rem;
+        font-weight: 600;
+        color: var(--blue-900);
+    }
+    .hero-visual .chip i { color: var(--primary); }
+    .hero-visual .chip.c1 { left: -22px; bottom: 36px; }
+    .hero-visual .chip.c2 { right: -18px; top: 28px; }
+
+    .features { padding: 72px 0 0; }
+    .features-head { text-align: center; max-width: 620px; margin: 0 auto 40px; }
+    .features-head p { color: var(--text-muted); }
+    .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .feature-grid .card { transition: transform .2s, box-shadow .2s; }
+    .feature-grid .card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+    .feature-grid .num {
+        font-size: .75rem;
+        font-weight: 800;
+        color: var(--blue-400);
+        letter-spacing: .1em;
+    }
+    .feature-grid p { color: var(--text-muted); margin: 0; }
+
+    @media (max-width: 900px) {
+        .hero-grid, .feature-grid { grid-template-columns: 1fr; }
+        .hero-visual .chip { display: none; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<head>
-    <meta charset="UTF-8">
-    
-    <meta name="viewport" content="width=device-width, user-scalale=no, initial-scale=1.0, maximum-scale=1.0, minimun-scale=1.0" >
-   
-    <link rel="stylesheet" href="{% static 'styles/normalize.css' %}">
-    <link rel="stylesheet" href="{% static 'styles/style.css' %}">
-
-    <title>Docking</title>
-   
-</head>
-<body>
-    
-    <section class="dos-columnas mg-top container">
-        <div class="contenido">
-        <h2 class="init">Welcome!</h2>
-        <h2 class="fg"> Science, at your fingertips</h2>
-        <p class="info-text">Discover our work in bioinformatics</p>
-        
-        <div class="group-btn">
-            <a href="/jobs" class="btn btn-yellow"> Start docking! </a>
-            <a href="https://github.com/htaldo/jimag-scripts/archive/refs/heads/main.zip" class="btn border"> Download standalone script </a> </div>
+<section class="hero">
+    <div class="container hero-grid">
+        <div>
+            <span class="eyebrow">Bioinformatics · Molecular docking</span>
+            <h1>Science, at your <span class="grad">fingertips</span></h1>
+            <p class="lead">
+                Upload a protein and a ligand, choose the binding pockets and
+                run AutoDock Vina — then explore every pose in an interactive 3D viewer.
+            </p>
+            <div class="hero-actions">
+                <a href="/jobs" class="btn btn-primary btn-lg"><i class="fas fa-play"></i> Start docking</a>
+                <a href="https://github.com/htaldo/jimag-scripts/archive/refs/heads/main.zip" class="btn btn-outline btn-lg">
+                    <i class="fas fa-download"></i> Standalone script
+                </a>
+            </div>
         </div>
-        <div class="info-img">
-            <img src="{% static 'pgif2.gif' %}" alt="ligando2">
-
+        <div class="hero-visual">
+            <img src="{% static 'pgif2.gif' %}" alt="Animated ligand bound to a protein">
+            <div class="chip c1"><i class="fas fa-crosshairs"></i> Pocket prediction</div>
+            <div class="chip c2"><i class="fas fa-cube"></i> Interactive 3D</div>
         </div>
     </div>
-    </section>
-</body>
+</section>
+
+<section class="features container">
+    <div class="features-head">
+        <span class="eyebrow">How it works</span>
+        <h2 style="font-size:1.9rem">From structure to binding affinity in three steps</h2>
+        <p>No installation and no command line. Everything runs on our servers.</p>
+    </div>
+    <div class="feature-grid">
+        <div class="card">
+            <div class="card-icon"><i class="fas fa-upload"></i></div>
+            <p class="num" style="margin-top:16px">STEP 01</p>
+            <h3>Upload your molecules</h3>
+            <p>Provide the receptor protein and the ligand. We prepare both files automatically.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon"><i class="fas fa-crosshairs"></i></div>
+            <p class="num" style="margin-top:16px">STEP 02</p>
+            <h3>Choose chains &amp; pockets</h3>
+            <p>Select chains in 3D and dock into the top predicted pockets, or pick them yourself.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon"><i class="fas fa-chart-line"></i></div>
+            <p class="num" style="margin-top:16px">STEP 03</p>
+            <h3>Analyze the results</h3>
+            <p>Compare affinities, inspect poses in 3D and download the full output.</p>
+        </div>
+    </div>
+</section>
 {% endblock %}
-</html>

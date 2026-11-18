@@ -129,6 +129,10 @@ def init_job(request):
     job.job_name = f"job_{job.id}"
     job.save()
 
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    profile.latest_job = job.id
+    profile.save()
+
     """
     docking = Docking.objects.create(
         user=request.user,

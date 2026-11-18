@@ -3,6 +3,7 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout, authenticate
 from django.db import IntegrityError
+from jobs.models import Profile
 
 
 # Create your views here.
@@ -17,6 +18,7 @@ def register(request):
                 user = User.objects.create_user(username=request.POST['username'], password=request.POST['password1'])
                 # send the user to the database
                 user.save()
+                Profile.objects.get_or_create(user=user)
                 login(request, user)
                 return redirect('jobs')
             except IntegrityError:

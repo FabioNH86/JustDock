@@ -250,6 +250,12 @@ def run_docking_script(user_id, job_id, docking_settings):
 
         # FINALIZACIÓN EXITOSA
         django_job.status = 'finished'
+
+        # this prevents jobs from being marked as latest if they were unsuccessful
+        profile, _ = Profile.objects.get_or_create(user_id=user_id)
+        profile.latest_job = job_id
+        profile.save(update_fields=['latest_job'])
+
         django_job.save()
         print("DEBUG: All docking runs finished successfully", flush=True)
         return "Script completed successfully"

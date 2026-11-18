@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ROOT=~/pro/falcon/script4
+ROOT="${1:-${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}}"
 SRC=~/.local/src
 ID=$ROOT/input
 OD=$ROOT/output

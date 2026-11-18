@@ -1,17 +1,18 @@
-<!DOCTYPE html>
 {% extends 'nav.html' %}
 {% load static %}
 
-{% block content %}
-<head>
-    <link rel="stylesheet" href="{% static 'styles/normalize.css' %}">
-    <link rel="stylesheet" href="{% static 'styles/style.css' %}">
+{% block title %}Log in required{% endblock %}
 
-    <title>Docking</title>
-   
-</head>
-<body>
-    <h1>You are not logged in!</h1> 
-</body>
+{% block content %}
+<div class="page container">
+    <div class="card empty-state" style="max-width:560px; margin:40px auto 0;">
+        <div class="card-icon"><i class="fas fa-lock"></i></div>
+        <h1 style="font-size:1.5rem">You are not logged in</h1>
+        <p>Log in or create a free account to run docking jobs and keep your results.</p>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <a href="{% url 'login' %}" class="btn btn-primary">Log in</a>
+            <a href="{% url 'register' %}" class="btn btn-outline">Create account</a>
+        </div>
+    </div>
+</div>
 {% endblock %}
-</html>
